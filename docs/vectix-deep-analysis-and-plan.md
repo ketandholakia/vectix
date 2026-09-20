@@ -29,9 +29,10 @@
 | `843a241` | Regression tests enabled; masked golden regenerated (the old one encoded the unmasked render) | `flutter test`: **22 passed, 0 skipped** |
 | `67db295` | Repo published publicly, app-only history (workspace files rewritten out) | remote refs = `refs/heads/master` only; CI green ×2 |
 | _this batch_ | **P1-2 / P1-3 / P1-4** SVG defaults, presentation inheritance, colour grammar, rounded rects, stroke caps/joins/opacity/miter-limit, alpha-preserving export; painter now applies the text properties it was ignoring (**P1-5**, partial) | `test/svg_style_test.dart` (25 tests); `flutter test`: **47 passed** |
+| _this batch_ | **P0-5** gradient geometry: `gradientUnits` modelled, canvas and PDF both render the authored direction, SVG export writes the real units | `test/gradient_geometry_test.dart` (14 tests incl. pixel direction); `flutter test`: **61 passed** |
 
 Still open from Phase A: lint ratchet (A4).
-Still open from Phase B: B4 (gradient geometry on canvas), B5 (artboard-aware SVG export), B6 (fidelity corpus — now the highest-value remaining item, since every fidelity claim in this project has so far turned out to be optimistic).
+Still open from Phase B: B5 (artboard-aware SVG export), B6 (fidelity corpus — the highest-value remaining item, since every fidelity claim in this project has so far turned out to be optimistic).
 
 **A new finding surfaced while fixing P0-4** — the mask renderer drew the mask geometry with `BlendMode.dstIn` and a white paint, i.e. *alpha* masking. The mask's colours were ignored, so a black shape inside a mask hid nothing even after the reference resolved. Real SVG `<mask>` is luminance-based. Fixed alongside the registry (`c7c46cd`); this is why the defect was invisible in code review and only appeared under pixel testing — reinforce B6 (corpus + render hashes) before trusting any other fidelity claim.
 
@@ -191,7 +192,9 @@ The deeper problem this exposes: `test/goldens/masked_group.png` was generated f
 
 Fix: give the document a real **defs registry** (`Map<String, VxElement> defs`) in `VxDocument`, resolve `<defs>` into it on import, write it back out on export, and have `_resolveReference` consult it. Add a 20-file SVG corpus with per-file expected render hashes in CI.
 
-### P0-5 · Gradients render wrong in the editor while exporting different geometry
+### P0-5 · Gradients render wrong in the editor while exporting different geometry  — **FIXED** in the B4 batch
+
+*(Diagnosis preserved. `GradientUnits` is now modelled on the gradient variants, `GradientGeometry` resolves the model's geometry against the element bounds for canvas *and* PDF (which also gained the missing y-flip), and the painter builds the shader from `ui.Gradient.linear/radial` with the authored coordinates instead of a hard-coded horizontal sweep. The inspector's gradient presets are now `objectBoundingBox`, so they behave like a design tool's fill. **Known approximation:** `objectBoundingBox` linear gradients map their endpoints into the bounds, which is exact for axis-aligned gradients but not for the exact projective map under non-uniform scaling; radial uses SVG's normalized-diagonal radius. `gradientTransform` is not modelled.)*
 `scene_painter.dart._applyFill`:
 ```dart
 linear: (start, end, stops) { paint.shader = LinearGradient(colors: ..., stops: ...).createShader(bounds); },
