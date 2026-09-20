@@ -126,8 +126,8 @@ class FillStrokeSection extends ConsumerWidget {
 
     String fillType = currentFill.when(
       solid: (_) => 'Solid',
-      linear: (_, __, ___) => 'Linear',
-      radial: (_, __, ___) => 'Radial',
+      linear: (_, __, ___, ____) => 'Linear',
+      radial: (_, __, ___, ____) => 'Radial',
       none: () => 'None',
     );
 
@@ -158,13 +158,19 @@ class FillStrokeSection extends ConsumerWidget {
                   if (val == 'None') newFill = const VxFill.none();
                   else if (val == 'Solid') newFill = const VxFill.solid(color: Colors.grey);
                   else if (val == 'Linear') {
+                    // Gradients default to objectBoundingBox so the direction
+                    // looks the same on any shape, whatever its size.
                     newFill = const VxFill.linear(
-                      start: Offset(0, 0), end: Offset(100, 100),
+                      units: GradientUnits.objectBoundingBox,
+                      start: Offset(0, 0),
+                      end: Offset(1, 1),
                       stops: [ColorStop(offset: 0, color: Colors.blue), ColorStop(offset: 1, color: Colors.red)]
                     );
                   } else {
                     newFill = const VxFill.radial(
-                      center: Offset(50, 50), radius: 50,
+                      units: GradientUnits.objectBoundingBox,
+                      center: Offset(0.5, 0.5),
+                      radius: 0.5,
                       stops: [ColorStop(offset: 0, color: Colors.blue), ColorStop(offset: 1, color: Colors.red)]
                     );
                   }

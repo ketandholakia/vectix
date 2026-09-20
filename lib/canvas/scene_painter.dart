@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 import '../models/vx_document.dart';
 import '../models/vx_element.dart';
 import '../state/editor_state.dart';
+import 'gradient_geometry.dart';
 import 'scene_index.dart';
 
 class ScenePainter extends CustomPainter {
@@ -502,21 +504,45 @@ class ScenePainter extends CustomPainter {
 
   void _applyFill(Paint paint, VxFill fill, Rect bounds) {
     paint.style = PaintingStyle.fill;
-    fill.when(
-      solid: (color) => paint.color = color,
-      linear: (start, end, stops) {
-        paint.shader = LinearGradient(
-          colors: stops.map((s) => s.color).toList(),
-          stops: stops.map((s) => s.offset).toList(),
-        ).createShader(bounds);
+    fill.map(
+      solid: (f) => paint.color = f.color,
+      none: (f) => paint.color = Colors.transparent,
+      linear: (f) {
+        if (f.stops.isEmpty) {
+          paint.color = Colors.transparent;
+          return;
+        }
+        if (f.stops.length == 1) {
+          paint.color = f.stops.first.color;
+          return;
+        }
+        // Geometry comes from the model, not from the bounding box: a gradient
+        // authored top-to-bottom or at an angle must render that way.
+        final geometry = GradientGeometry.linear(f, bounds);
+        paint.shader = ui.Gradient.linear(
+          geometry.from,
+          geometry.to,
+          GradientGeometry.stopColors(f.stops),
+          GradientGeometry.stopOffsets(f.stops),
+        );
       },
-      radial: (center, radius, stops) {
-        paint.shader = RadialGradient(
-          colors: stops.map((s) => s.color).toList(),
-          stops: stops.map((s) => s.offset).toList(),
-        ).createShader(bounds);
+      radial: (f) {
+        if (f.stops.isEmpty) {
+          paint.color = Colors.transparent;
+          return;
+        }
+        if (f.stops.length == 1) {
+          paint.color = f.stops.first.color;
+          return;
+        }
+        final geometry = GradientGeometry.radial(f, bounds);
+        paint.shader = ui.Gradient.radial(
+          geometry.center,
+          geometry.radius,
+          GradientGeometry.stopColors(f.stops),
+          GradientGeometry.stopOffsets(f.stops),
+        );
       },
-      none: () => paint.color = Colors.transparent,
     );
   }
 

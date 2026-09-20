@@ -190,37 +190,37 @@ class SvgExporter {
       );
     }
 
-    fill.whenOrNull(
-      linear: (start, end, stops) {
+    fill.mapOrNull(
+      linear: (f) {
         b.element(
           'linearGradient',
           attributes: {
             'id': 'fill_$elementId',
-            'x1': '${start.dx}',
-            'y1': '${start.dy}',
-            'x2': '${end.dx}',
-            'y2': '${end.dy}',
-            'gradientUnits': 'userSpaceOnUse',
+            'gradientUnits': _gradientUnitsName(f.units),
+            'x1': '${f.start.dx}',
+            'y1': '${f.start.dy}',
+            'x2': '${f.end.dx}',
+            'y2': '${f.end.dy}',
           },
           nest: () {
-            for (final s in stops) {
+            for (final s in f.stops) {
               writeStop(s);
             }
           },
         );
       },
-      radial: (center, radius, stops) {
+      radial: (f) {
         b.element(
           'radialGradient',
           attributes: {
             'id': 'fill_$elementId',
-            'cx': '${center.dx}',
-            'cy': '${center.dy}',
-            'r': '$radius',
-            'gradientUnits': 'userSpaceOnUse',
+            'gradientUnits': _gradientUnitsName(f.units),
+            'cx': '${f.center.dx}',
+            'cy': '${f.center.dy}',
+            'r': '${f.radius}',
           },
           nest: () {
-            for (final s in stops) {
+            for (final s in f.stops) {
               writeStop(s);
             }
           },
@@ -228,6 +228,12 @@ class SvgExporter {
       },
     );
   }
+
+  /// SVG names for the model's gradient coordinate space.
+  static String _gradientUnitsName(GradientUnits units) => switch (units) {
+    GradientUnits.userSpaceOnUse => 'userSpaceOnUse',
+    GradientUnits.objectBoundingBox => 'objectBoundingBox',
+  };
 
   static void _writeElement(XmlBuilder b, VxElement el) {
     el.map(
@@ -409,8 +415,8 @@ class SvgExporter {
   static double _fillAlpha(VxFill fill) {
     return fill.when(
       solid: (c) => c.a,
-      linear: (_, __, ___) => 1.0,
-      radial: (_, __, ___) => 1.0,
+      linear: (_, __, ___, ____) => 1.0,
+      radial: (_, __, ___, ____) => 1.0,
       none: () => 1.0,
     );
   }
@@ -440,8 +446,8 @@ class SvgExporter {
   static String _getFillValue(VxFill fill, String elementId) {
     return fill.when(
       solid: (color) => color.a == 0 ? 'none' : _colorToHex(color),
-      linear: (_, __, ___) => 'url(#fill_$elementId)',
-      radial: (_, __, ___) => 'url(#fill_$elementId)',
+      linear: (_, __, ___, ____) => 'url(#fill_$elementId)',
+      radial: (_, __, ___, ____) => 'url(#fill_$elementId)',
       none: () => 'none',
     );
   }

@@ -584,16 +584,8 @@ class SvgImporter {
     return fill.map(
       solid: (f) =>
           VxFill.solid(color: f.color.withValues(alpha: f.color.a * opacity)),
-      linear: (f) => VxFill.linear(
-        start: f.start,
-        end: f.end,
-        stops: _scaleStops(f.stops, opacity),
-      ),
-      radial: (f) => VxFill.radial(
-        center: f.center,
-        radius: f.radius,
-        stops: _scaleStops(f.stops, opacity),
-      ),
+      linear: (f) => f.copyWith(stops: _scaleStops(f.stops, opacity)),
+      radial: (f) => f.copyWith(stops: _scaleStops(f.stops, opacity)),
       none: (f) => const VxFill.none(),
     );
   }
@@ -811,29 +803,70 @@ class SvgImporter {
           1.0;
       stops.add(
         ColorStop(
-          offset: offset.clamp(0.0, 1.0),
+          offset: offset,
           color: stopColor.withValues(alpha: stopColor.a * stopOpacity),
         ),
       );
     }
+
+    // SVG: offsets are clamped to 0..1 and an offset below its predecessor is
+    // raised to it. Normalising here keeps paint time and the PDF shading API
+    // (which both demand monotonic offsets) simple.
+    final ordered = <ColorStop>[];
+    var previous = 0.0;
+    for (final stop in stops) {
+      var offset = stop.offset.clamp(0.0, 1.0);
+      if (offset < previous) offset = previous;
+      ordered.add(ColorStop(offset: offset, color: stop.color));
+      previous = offset;
+    }
+
+    // gradientUnits defaults to objectBoundingBox, i.e. fractions of the
+    // element's bounds — the common case for artwork exported from design tools.
+    final unitsAttr = (def.getAttribute('gradientUnits') ?? '').trim();
+    final units = unitsAttr == 'userSpaceOnUse'
+        ? GradientUnits.userSpaceOnUse
+        : GradientUnits.objectBoundingBox;
+
     if (def.name.local == 'linearGradient') {
-      final x1 = _parseDouble(def.getAttribute('x1')) ?? 0.0;
-      final y1 = _parseDouble(def.getAttribute('y1')) ?? 0.0;
-      final x2 = _parseDouble(def.getAttribute('x2')) ?? 1.0;
-      final y2 = _parseDouble(def.getAttribute('y2')) ?? 0.0;
       return VxFill.linear(
-        start: Offset(x1, y1),
-        end: Offset(x2, y2),
-        stops: stops,
+        units: units,
+        start: Offset(
+          _parseGradientCoordinate(def.getAttribute('x1'), 0.0),
+          _parseGradientCoordinate(def.getAttribute('y1'), 0.0),
+        ),
+        end: Offset(
+          _parseGradientCoordinate(def.getAttribute('x2'), 1.0),
+          _parseGradientCoordinate(def.getAttribute('y2'), 0.0),
+        ),
+        stops: ordered,
       );
     }
     if (def.name.local == 'radialGradient') {
-      final cx = _parseDouble(def.getAttribute('cx')) ?? 0.5;
-      final cy = _parseDouble(def.getAttribute('cy')) ?? 0.5;
-      final r = _parseDouble(def.getAttribute('r')) ?? 0.5;
-      return VxFill.radial(center: Offset(cx, cy), radius: r, stops: stops);
+      return VxFill.radial(
+        units: units,
+        center: Offset(
+          _parseGradientCoordinate(def.getAttribute('cx'), 0.5),
+          _parseGradientCoordinate(def.getAttribute('cy'), 0.5),
+        ),
+        radius: _parseGradientCoordinate(def.getAttribute('r'), 0.5),
+        stops: ordered,
+      );
     }
     return const VxFill.none();
+  }
+
+  /// Gradient coordinates may be plain numbers or percentages of the unit
+  /// square, e.g. `x1="0%" x2="100%"`.
+  static double _parseGradientCoordinate(String? raw, double fallback) {
+    if (raw == null) return fallback;
+    final v = raw.trim();
+    if (v.isEmpty) return fallback;
+    if (v.endsWith('%')) {
+      final pct = double.tryParse(v.substring(0, v.length - 1));
+      return pct == null ? fallback : pct / 100.0;
+    }
+    return double.tryParse(v) ?? fallback;
   }
 
   static Map<String, String> _parseStyleAttributes(XmlElement node) {

@@ -92,6 +92,9 @@ Map<String, dynamic> _$SolidFillToJson(SolidFill instance) => <String, dynamic>{
 };
 
 LinearFill _$LinearFillFromJson(Map<String, dynamic> json) => LinearFill(
+  units:
+      $enumDecodeNullable(_$GradientUnitsEnumMap, json['units']) ??
+      GradientUnits.userSpaceOnUse,
   start: const OffsetConverter().fromJson(
     json['start'] as Map<String, dynamic>,
   ),
@@ -104,13 +107,22 @@ LinearFill _$LinearFillFromJson(Map<String, dynamic> json) => LinearFill(
 
 Map<String, dynamic> _$LinearFillToJson(LinearFill instance) =>
     <String, dynamic>{
+      'units': _$GradientUnitsEnumMap[instance.units]!,
       'start': const OffsetConverter().toJson(instance.start),
       'end': const OffsetConverter().toJson(instance.end),
       'stops': instance.stops,
       'runtimeType': instance.$type,
     };
 
+const _$GradientUnitsEnumMap = {
+  GradientUnits.userSpaceOnUse: 'userSpaceOnUse',
+  GradientUnits.objectBoundingBox: 'objectBoundingBox',
+};
+
 RadialFill _$RadialFillFromJson(Map<String, dynamic> json) => RadialFill(
+  units:
+      $enumDecodeNullable(_$GradientUnitsEnumMap, json['units']) ??
+      GradientUnits.userSpaceOnUse,
   center: const OffsetConverter().fromJson(
     json['center'] as Map<String, dynamic>,
   ),
@@ -123,6 +135,7 @@ RadialFill _$RadialFillFromJson(Map<String, dynamic> json) => RadialFill(
 
 Map<String, dynamic> _$RadialFillToJson(RadialFill instance) =>
     <String, dynamic>{
+      'units': _$GradientUnitsEnumMap[instance.units]!,
       'center': const OffsetConverter().toJson(instance.center),
       'radius': instance.radius,
       'stops': instance.stops,

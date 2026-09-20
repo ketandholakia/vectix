@@ -27,15 +27,27 @@ abstract class ColorStop with _$ColorStop {
   factory ColorStop.fromJson(Map<String, dynamic> json) => _$ColorStopFromJson(json);
 }
 
+/// How gradient coordinates are interpreted, mirroring SVG's `gradientUnits`.
+///
+/// `objectBoundingBox` (SVG's default) is the one designers expect: the
+/// gradient is expressed as fractions of the element's bounds, so it scales
+/// with the shape when the shape is resized.
+enum GradientUnits {
+  userSpaceOnUse,
+  objectBoundingBox,
+}
+
 @freezed
 abstract class VxFill with _$VxFill {
     const factory VxFill.solid({@ColorConverter() required Color color}) = SolidFill;
   const factory VxFill.linear({
+    @Default(GradientUnits.userSpaceOnUse) GradientUnits units,
     @OffsetConverter() required Offset start,
     @OffsetConverter() required Offset end,
     required List<ColorStop> stops,
   }) = LinearFill;
   const factory VxFill.radial({
+    @Default(GradientUnits.userSpaceOnUse) GradientUnits units,
     @OffsetConverter() required Offset center,
     required double radius,
     required List<ColorStop> stops,

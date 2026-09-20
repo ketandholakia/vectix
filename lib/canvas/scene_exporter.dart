@@ -17,6 +17,7 @@ import 'package:vector_math/vector_math_64.dart';
 import '../models/vx_document.dart';
 import '../models/vx_element.dart';
 import '../state/editor_state.dart';
+import 'gradient_geometry.dart';
 import 'scene_painter.dart';
 
 class SceneExporter {
@@ -303,7 +304,7 @@ class SceneExporter {
                 }
               }
               final r = Rect.fromLTWH(x, y, width, height);
-              _paintRect(g, pdfDocument, r, fill, stroke);
+              _paintRect(g, pdfDocument, r, fill, stroke, pageHeight);
             });
           },
       ellipse:
@@ -338,7 +339,17 @@ class SceneExporter {
                   );
                 }
               }
-              _paintEllipse(g, pdfDocument, cx, cy, rx, ry, fill, stroke);
+              _paintEllipse(
+                g,
+                pdfDocument,
+                cx,
+                cy,
+                rx,
+                ry,
+                fill,
+                stroke,
+                pageHeight,
+              );
             });
           },
       path:
@@ -581,13 +592,14 @@ class SceneExporter {
     Rect rect,
     VxFill fill,
     VxStroke stroke,
+    double pageHeight,
   ) {
     g.moveTo(rect.left, rect.bottom);
     g.lineTo(rect.right, rect.bottom);
     g.lineTo(rect.right, rect.top);
     g.lineTo(rect.left, rect.top);
     g.closePath();
-    _applyPdfFill(g, pdfDocument, fill);
+    _applyPdfFill(g, pdfDocument, fill, rect, pageHeight);
     g.fillPath();
     if (stroke.width > 0) {
       g.moveTo(rect.left, rect.bottom);
@@ -609,11 +621,18 @@ class SceneExporter {
     double ry,
     VxFill fill,
     VxStroke stroke,
+    double pageHeight,
   ) {
     g.moveTo(cx + rx, cy);
     g.bezierArc(cx, cy, rx, ry, 0, 360);
     g.closePath();
-    _applyPdfFill(g, pdfDocument, fill);
+    _applyPdfFill(
+      g,
+      pdfDocument,
+      fill,
+      Rect.fromCenter(center: Offset(cx, cy), width: rx * 2, height: ry * 2),
+      pageHeight,
+    );
     g.fillPath();
     if (stroke.width > 0) {
       g.moveTo(cx + rx, cy);
@@ -634,7 +653,13 @@ class SceneExporter {
   ) {
     if (segments.isEmpty) return;
     _drawPdfSegments(g, segments, pageHeight);
-    _applyPdfFill(g, pdfDocument, fill);
+    _applyPdfFill(
+      g,
+      pdfDocument,
+      fill,
+      _pathLocalBounds(segments, pageHeight),
+      pageHeight,
+    );
     g.fillPath();
     if (stroke.width > 0) {
       _applyPdfStroke(g, stroke);
@@ -951,36 +976,33 @@ class SceneExporter {
     g.restoreContext();
   }
 
-  static PdfColor _fillColor(VxFill fill) {
-    return fill.when(
-      solid: (color) => PdfColor.fromInt(color.value),
-      linear: (_, __, stops) => PdfColor.fromInt(stops.first.color.value),
-      radial: (_, __, stops) => PdfColor.fromInt(stops.first.color.value),
-      none: () => PdfColor.fromInt(0x00000000),
-    );
-  }
-
-  static PdfColor _strokeColor(VxStroke stroke) =>
-      PdfColor.fromInt(stroke.color.value);
-
   static void _applyPdfFill(
     PdfGraphics g,
     PdfDocument pdfDocument,
     VxFill fill,
+    Rect localBounds,
+    double pageHeight,
   ) {
-    fill.when(
-      solid: (color) => g.setFillColor(PdfColor.fromInt(color.value)),
-      linear: (start, end, stops) {
+    // PDF's origin is bottom-left, so element-local y is mirrored here.
+    double flipY(double y) => pageHeight - y;
+
+    fill.map(
+      solid: (f) => g.setFillColor(PdfColor.fromInt(f.color.toARGB32())),
+      none: (f) => g.setFillColor(PdfColor.fromInt(0x00000000)),
+      linear: (f) {
+        final geometry = GradientGeometry.linear(f, localBounds);
         final shading = pdf_shading.PdfShading(
           pdfDocument,
           shadingType: pdf_shading.PdfShadingType.axial,
           function: pdf_fn.PdfBaseFunction.colorsAndStops(
             pdfDocument,
-            stops.map((s) => PdfColor.fromInt(s.color.value)).toList(),
-            stops.map((s) => s.offset).toList(),
+            GradientGeometry.stopColors(
+              f.stops,
+            ).map((c) => PdfColor.fromInt(c.toARGB32())).toList(),
+            GradientGeometry.stopOffsets(f.stops),
           ),
-          start: PdfPoint(start.dx, start.dy),
-          end: PdfPoint(end.dx, end.dy),
+          start: PdfPoint(geometry.from.dx, flipY(geometry.from.dy)),
+          end: PdfPoint(geometry.to.dx, flipY(geometry.to.dy)),
           extendStart: true,
           extendEnd: true,
         );
@@ -988,19 +1010,22 @@ class SceneExporter {
           pdf_pattern.PdfShadingPattern(pdfDocument, shading: shading),
         );
       },
-      radial: (center, radius, stops) {
+      radial: (f) {
+        final geometry = GradientGeometry.radial(f, localBounds);
         final shading = pdf_shading.PdfShading(
           pdfDocument,
           shadingType: pdf_shading.PdfShadingType.radial,
           function: pdf_fn.PdfBaseFunction.colorsAndStops(
             pdfDocument,
-            stops.map((s) => PdfColor.fromInt(s.color.value)).toList(),
-            stops.map((s) => s.offset).toList(),
+            GradientGeometry.stopColors(
+              f.stops,
+            ).map((c) => PdfColor.fromInt(c.toARGB32())).toList(),
+            GradientGeometry.stopOffsets(f.stops),
           ),
-          start: PdfPoint(center.dx, center.dy),
-          end: PdfPoint(center.dx, center.dy),
+          start: PdfPoint(geometry.center.dx, flipY(geometry.center.dy)),
+          end: PdfPoint(geometry.center.dx, flipY(geometry.center.dy)),
           radius0: 0,
-          radius1: radius,
+          radius1: geometry.radius,
           extendStart: true,
           extendEnd: true,
         );
@@ -1008,7 +1033,18 @@ class SceneExporter {
           pdf_pattern.PdfShadingPattern(pdfDocument, shading: shading),
         );
       },
-      none: () => g.setFillColor(PdfColor.fromInt(0x00000000)),
+    );
+  }
+
+  /// Element-local bounds of a path, recovered from the page-flipped PDF path.
+  static Rect _pathLocalBounds(List<PathSegment> segments, double pageHeight) {
+    final pdfBounds = _buildPath(segments, pageHeight).getBounds();
+    if (pdfBounds.isEmpty) return Rect.zero;
+    return Rect.fromLTRB(
+      pdfBounds.left,
+      pageHeight - pdfBounds.bottom,
+      pdfBounds.right,
+      pageHeight - pdfBounds.top,
     );
   }
 

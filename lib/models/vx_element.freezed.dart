@@ -987,12 +987,12 @@ return none(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function(@ColorConverter()  Color color)?  solid,TResult Function(@OffsetConverter()  Offset start, @OffsetConverter()  Offset end,  List<ColorStop> stops)?  linear,TResult Function(@OffsetConverter()  Offset center,  double radius,  List<ColorStop> stops)?  radial,TResult Function()?  none,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function(@ColorConverter()  Color color)?  solid,TResult Function( GradientUnits units, @OffsetConverter()  Offset start, @OffsetConverter()  Offset end,  List<ColorStop> stops)?  linear,TResult Function( GradientUnits units, @OffsetConverter()  Offset center,  double radius,  List<ColorStop> stops)?  radial,TResult Function()?  none,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case SolidFill() when solid != null:
 return solid(_that.color);case LinearFill() when linear != null:
-return linear(_that.start,_that.end,_that.stops);case RadialFill() when radial != null:
-return radial(_that.center,_that.radius,_that.stops);case NoFill() when none != null:
+return linear(_that.units,_that.start,_that.end,_that.stops);case RadialFill() when radial != null:
+return radial(_that.units,_that.center,_that.radius,_that.stops);case NoFill() when none != null:
 return none();case _:
   return orElse();
 
@@ -1011,12 +1011,12 @@ return none();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function(@ColorConverter()  Color color)  solid,required TResult Function(@OffsetConverter()  Offset start, @OffsetConverter()  Offset end,  List<ColorStop> stops)  linear,required TResult Function(@OffsetConverter()  Offset center,  double radius,  List<ColorStop> stops)  radial,required TResult Function()  none,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function(@ColorConverter()  Color color)  solid,required TResult Function( GradientUnits units, @OffsetConverter()  Offset start, @OffsetConverter()  Offset end,  List<ColorStop> stops)  linear,required TResult Function( GradientUnits units, @OffsetConverter()  Offset center,  double radius,  List<ColorStop> stops)  radial,required TResult Function()  none,}) {final _that = this;
 switch (_that) {
 case SolidFill():
 return solid(_that.color);case LinearFill():
-return linear(_that.start,_that.end,_that.stops);case RadialFill():
-return radial(_that.center,_that.radius,_that.stops);case NoFill():
+return linear(_that.units,_that.start,_that.end,_that.stops);case RadialFill():
+return radial(_that.units,_that.center,_that.radius,_that.stops);case NoFill():
 return none();case _:
   throw StateError('Unexpected subclass');
 
@@ -1034,12 +1034,12 @@ return none();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function(@ColorConverter()  Color color)?  solid,TResult? Function(@OffsetConverter()  Offset start, @OffsetConverter()  Offset end,  List<ColorStop> stops)?  linear,TResult? Function(@OffsetConverter()  Offset center,  double radius,  List<ColorStop> stops)?  radial,TResult? Function()?  none,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function(@ColorConverter()  Color color)?  solid,TResult? Function( GradientUnits units, @OffsetConverter()  Offset start, @OffsetConverter()  Offset end,  List<ColorStop> stops)?  linear,TResult? Function( GradientUnits units, @OffsetConverter()  Offset center,  double radius,  List<ColorStop> stops)?  radial,TResult? Function()?  none,}) {final _that = this;
 switch (_that) {
 case SolidFill() when solid != null:
 return solid(_that.color);case LinearFill() when linear != null:
-return linear(_that.start,_that.end,_that.stops);case RadialFill() when radial != null:
-return radial(_that.center,_that.radius,_that.stops);case NoFill() when none != null:
+return linear(_that.units,_that.start,_that.end,_that.stops);case RadialFill() when radial != null:
+return radial(_that.units,_that.center,_that.radius,_that.stops);case NoFill() when none != null:
 return none();case _:
   return null;
 
@@ -1125,9 +1125,10 @@ as Color,
 @JsonSerializable()
 
 class LinearFill implements VxFill {
-  const LinearFill({@OffsetConverter() required this.start, @OffsetConverter() required this.end, required final  List<ColorStop> stops, final  String? $type}): _stops = stops,$type = $type ?? 'linear';
+  const LinearFill({this.units = GradientUnits.userSpaceOnUse, @OffsetConverter() required this.start, @OffsetConverter() required this.end, required final  List<ColorStop> stops, final  String? $type}): _stops = stops,$type = $type ?? 'linear';
   factory LinearFill.fromJson(Map<String, dynamic> json) => _$LinearFillFromJson(json);
 
+@JsonKey() final  GradientUnits units;
 @OffsetConverter() final  Offset start;
 @OffsetConverter() final  Offset end;
  final  List<ColorStop> _stops;
@@ -1155,16 +1156,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LinearFill&&(identical(other.start, start) || other.start == start)&&(identical(other.end, end) || other.end == end)&&const DeepCollectionEquality().equals(other._stops, _stops));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LinearFill&&(identical(other.units, units) || other.units == units)&&(identical(other.start, start) || other.start == start)&&(identical(other.end, end) || other.end == end)&&const DeepCollectionEquality().equals(other._stops, _stops));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,start,end,const DeepCollectionEquality().hash(_stops));
+int get hashCode => Object.hash(runtimeType,units,start,end,const DeepCollectionEquality().hash(_stops));
 
 @override
 String toString() {
-  return 'VxFill.linear(start: $start, end: $end, stops: $stops)';
+  return 'VxFill.linear(units: $units, start: $start, end: $end, stops: $stops)';
 }
 
 
@@ -1175,7 +1176,7 @@ abstract mixin class $LinearFillCopyWith<$Res> implements $VxFillCopyWith<$Res> 
   factory $LinearFillCopyWith(LinearFill value, $Res Function(LinearFill) _then) = _$LinearFillCopyWithImpl;
 @useResult
 $Res call({
-@OffsetConverter() Offset start,@OffsetConverter() Offset end, List<ColorStop> stops
+ GradientUnits units,@OffsetConverter() Offset start,@OffsetConverter() Offset end, List<ColorStop> stops
 });
 
 
@@ -1192,9 +1193,10 @@ class _$LinearFillCopyWithImpl<$Res>
 
 /// Create a copy of VxFill
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? start = null,Object? end = null,Object? stops = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? units = null,Object? start = null,Object? end = null,Object? stops = null,}) {
   return _then(LinearFill(
-start: null == start ? _self.start : start // ignore: cast_nullable_to_non_nullable
+units: null == units ? _self.units : units // ignore: cast_nullable_to_non_nullable
+as GradientUnits,start: null == start ? _self.start : start // ignore: cast_nullable_to_non_nullable
 as Offset,end: null == end ? _self.end : end // ignore: cast_nullable_to_non_nullable
 as Offset,stops: null == stops ? _self._stops : stops // ignore: cast_nullable_to_non_nullable
 as List<ColorStop>,
@@ -1208,9 +1210,10 @@ as List<ColorStop>,
 @JsonSerializable()
 
 class RadialFill implements VxFill {
-  const RadialFill({@OffsetConverter() required this.center, required this.radius, required final  List<ColorStop> stops, final  String? $type}): _stops = stops,$type = $type ?? 'radial';
+  const RadialFill({this.units = GradientUnits.userSpaceOnUse, @OffsetConverter() required this.center, required this.radius, required final  List<ColorStop> stops, final  String? $type}): _stops = stops,$type = $type ?? 'radial';
   factory RadialFill.fromJson(Map<String, dynamic> json) => _$RadialFillFromJson(json);
 
+@JsonKey() final  GradientUnits units;
 @OffsetConverter() final  Offset center;
  final  double radius;
  final  List<ColorStop> _stops;
@@ -1238,16 +1241,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is RadialFill&&(identical(other.center, center) || other.center == center)&&(identical(other.radius, radius) || other.radius == radius)&&const DeepCollectionEquality().equals(other._stops, _stops));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RadialFill&&(identical(other.units, units) || other.units == units)&&(identical(other.center, center) || other.center == center)&&(identical(other.radius, radius) || other.radius == radius)&&const DeepCollectionEquality().equals(other._stops, _stops));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,center,radius,const DeepCollectionEquality().hash(_stops));
+int get hashCode => Object.hash(runtimeType,units,center,radius,const DeepCollectionEquality().hash(_stops));
 
 @override
 String toString() {
-  return 'VxFill.radial(center: $center, radius: $radius, stops: $stops)';
+  return 'VxFill.radial(units: $units, center: $center, radius: $radius, stops: $stops)';
 }
 
 
@@ -1258,7 +1261,7 @@ abstract mixin class $RadialFillCopyWith<$Res> implements $VxFillCopyWith<$Res> 
   factory $RadialFillCopyWith(RadialFill value, $Res Function(RadialFill) _then) = _$RadialFillCopyWithImpl;
 @useResult
 $Res call({
-@OffsetConverter() Offset center, double radius, List<ColorStop> stops
+ GradientUnits units,@OffsetConverter() Offset center, double radius, List<ColorStop> stops
 });
 
 
@@ -1275,9 +1278,10 @@ class _$RadialFillCopyWithImpl<$Res>
 
 /// Create a copy of VxFill
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? center = null,Object? radius = null,Object? stops = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? units = null,Object? center = null,Object? radius = null,Object? stops = null,}) {
   return _then(RadialFill(
-center: null == center ? _self.center : center // ignore: cast_nullable_to_non_nullable
+units: null == units ? _self.units : units // ignore: cast_nullable_to_non_nullable
+as GradientUnits,center: null == center ? _self.center : center // ignore: cast_nullable_to_non_nullable
 as Offset,radius: null == radius ? _self.radius : radius // ignore: cast_nullable_to_non_nullable
 as double,stops: null == stops ? _self._stops : stops // ignore: cast_nullable_to_non_nullable
 as List<ColorStop>,
