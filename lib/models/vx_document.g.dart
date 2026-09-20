@@ -46,6 +46,11 @@ _VxDocument _$VxDocumentFromJson(Map<String, dynamic> json) => _VxDocument(
   pageCount: (json['pageCount'] as num?)?.toInt() ?? 1,
   activePageIndex: (json['activePageIndex'] as num?)?.toInt() ?? 0,
   artboardMode: json['artboardMode'] as String? ?? 'single',
+  defs:
+      (json['defs'] as Map<String, dynamic>?)?.map(
+        (k, e) => MapEntry(k, VxElement.fromJson(e as Map<String, dynamic>)),
+      ) ??
+      const <String, VxElement>{},
 );
 
 Map<String, dynamic> _$VxDocumentToJson(_VxDocument instance) =>
@@ -61,4 +66,5 @@ Map<String, dynamic> _$VxDocumentToJson(_VxDocument instance) =>
       'pageCount': instance.pageCount,
       'activePageIndex': instance.activePageIndex,
       'artboardMode': instance.artboardMode,
+      'defs': instance.defs,
     };

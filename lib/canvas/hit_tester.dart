@@ -191,7 +191,7 @@ class HitTester {
           ) {
             final localPoint = _toLocalPoint(point, transform);
             final targetId = href.startsWith('#') ? href.substring(1) : href;
-            final target = _findElementById(doc.elements, targetId);
+            final target = _resolve(doc, targetId);
             return target != null && _elementContains(target, localPoint, doc);
           },
       symbol:
@@ -350,7 +350,7 @@ class HitTester {
             maskId,
           ) {
             final targetId = href.startsWith('#') ? href.substring(1) : href;
-            final target = _findElementById(doc.elements, targetId);
+            final target = _resolve(doc, targetId);
             return target != null ? getBounds(target, doc) : Rect.zero;
           },
       symbol:
@@ -581,6 +581,14 @@ class HitTester {
     textPainter.text = TextSpan(text: content, style: style);
     textPainter.layout();
     return Rect.fromLTWH(x, y, textPainter.width, textPainter.height);
+  }
+
+  /// Resolves a reference id against document definitions first (masks, clip
+  /// paths, symbols), then against the painted element tree.
+  static VxElement? _resolve(VxDocument doc, String id) {
+    final def = doc.defs[id];
+    if (def != null) return def;
+    return _findElementById(doc.elements, id);
   }
 
   static VxElement? _findElementById(List<VxElement> elements, String id) {

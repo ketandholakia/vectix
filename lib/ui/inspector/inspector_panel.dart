@@ -28,12 +28,7 @@ class InspectorPanel extends ConsumerWidget {
     final state = ref.watch(editorProvider);
 
     if (state.selectedIds.isEmpty) {
-      return const Center(
-        child: Text(
-          'No element selected',
-          style: TextStyle(color: Colors.white54),
-        ),
-      );
+      return _emptySelectionView(context, ref, state);
     }
 
     if (state.selectedIds.length > 1) {
@@ -286,8 +281,60 @@ class InspectorPanel extends ConsumerWidget {
     );
   }
 
+  /// With nothing selected, show the asset library when the document has one,
+  /// so definitions that live in [VxDocument.defs] (imported `<symbol>`s) stay
+  /// reachable — they cannot be selected on the canvas because they are not
+  /// painted artwork.
+  Widget _emptySelectionView(
+    BuildContext context,
+    WidgetRef ref,
+    dynamic state,
+  ) {
+    final hasSymbols =
+        state.document.defs.values.any((e) => e is VxSymbol) ||
+        state.document.elements.any((e) => e is VxSymbol);
+    if (!hasSymbols) {
+      return const Center(
+        child: Text(
+          'No element selected',
+          style: TextStyle(color: Colors.white54),
+        ),
+      );
+    }
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Text(
+              'Assets',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: _buildSymbolBrowser(context, ref, state),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSymbolBrowser(BuildContext context, WidgetRef ref, dynamic state) {
-    final symbols = state.document.elements.whereType<VxSymbol>().toList();
+    // Symbols live in the artwork tree (documents created in-app) or in the
+    // document definitions (imported <symbol> elements). Show both, deduped.
+    final byId = <String, VxSymbol>{};
+    for (final symbol in state.document.elements.whereType<VxSymbol>()) {
+      byId[symbol.id] = symbol;
+    }
+    for (final symbol in state.document.defs.values.whereType<VxSymbol>()) {
+      byId[symbol.id] = symbol;
+    }
+    final symbols = byId.values.toList();
     if (symbols.isEmpty) {
       return const Text(
         'No symbols in document',
@@ -447,8 +494,13 @@ class InspectorPanel extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          PopupMenuButton<String>(
-                            icon: const Icon(Icons.more_vert, size: 18),
+                          // Renaming / duplicating / deleting acts on the artwork
+                          // tree, so it is only offered for symbols that live there.
+                          if (state.document.elements.any(
+                            (e) => e.id == symbol.id,
+                          ))
+                            PopupMenuButton<String>(
+                              icon: const Icon(Icons.more_vert, size: 18),
                             onSelected: (value) {
                               if (value == 'duplicate') {
                                 final duplicate = VxElement.symbol(

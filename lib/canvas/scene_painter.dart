@@ -265,10 +265,7 @@ class ScenePainter extends CustomPainter {
     );
 
     if (maskTarget != null) {
-      final maskPaint = Paint()
-        ..color = Colors.white
-        ..blendMode = BlendMode.dstIn;
-      canvas.drawPath(_getElementAsPath(maskTarget), maskPaint);
+      _paintLuminanceMask(canvas, maskTarget);
       canvas.restore();
     }
 
@@ -432,6 +429,38 @@ class ScenePainter extends CustomPainter {
     return path;
   }
 
+  /// SVG `<mask>` semantics: the mask content's **luminance** becomes the
+  /// coverage of the masked element (white keeps, black hides, grey blends).
+  ///
+  /// The old implementation drew the mask geometry with `BlendMode.dstIn`,
+  /// which is *alpha* masking: the mask's colours were ignored, so a black
+  /// shape inside a mask hid nothing (finding P0-4 / fixture masked_group.svg).
+  ///
+  /// Here the mask is rendered into an inner layer whose paint converts
+  /// luminance to alpha before compositing with `dstIn`, which is the standard
+  /// Skia technique and needs no offscreen image.
+  void _paintLuminanceMask(Canvas canvas, VxElement maskSource) {
+    final bounds = _getElementAsPath(maskSource).getBounds();
+    if (bounds.isEmpty) return;
+    canvas.saveLayer(
+      bounds,
+      Paint()
+        ..colorFilter = _luminanceToAlpha
+        ..blendMode = BlendMode.dstIn,
+    );
+    _paintElement(canvas, maskSource);
+    canvas.restore();
+  }
+
+  /// Maps (r,g,b,a) to (0,0,0, luminance). Rec. 709 weights, offsets in the
+  /// 0-255 scale Skia expects.
+  static const ColorFilter _luminanceToAlpha = ColorFilter.matrix(<double>[
+    0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0,
+    0.2126, 0.7152, 0.0722, 0, 0,
+  ]);
+
   void _applyFill(Paint paint, VxFill fill, Rect bounds) {
     paint.style = PaintingStyle.fill;
     fill.when(
@@ -551,6 +580,10 @@ class ScenePainter extends CustomPainter {
 
   VxElement? _resolveReference(String? id) {
     if (id == null) return null;
+    // Definitions first (masks, clip paths, symbols, clip sources), then the
+    // painted element tree for references to ordinary artwork.
+    final def = document.defs[id];
+    if (def != null) return def;
     return _findElementById(document.elements, id);
   }
 }

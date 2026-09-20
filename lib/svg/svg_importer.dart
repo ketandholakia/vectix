@@ -41,21 +41,42 @@ class SvgImporter {
     }
 
     final elements = <VxElement>[];
+    final defs = <String, VxElement>{};
+    final rawDefs = <String, XmlElement>{};
     _defs.clear();
 
+    // Pass 1 — collect <defs> content. Gradients stay as raw XML because
+    // _parseFill resolves them lazily while parsing the elements that use them;
+    // everything else is a referenceable definition (mask / clipPath / symbol /
+    // plain shape used as a clip or mask source).
     for (final node in svgRoot.children) {
-      if (node is XmlElement) {
-        if (node.name.local == 'defs') {
-          for (final defNode in node.children) {
-            if (defNode is XmlElement) {
-              final defId = defNode.getAttribute('id');
-              if (defId != null) _defs[defId] = defNode;
-            }
-          }
+      if (node is! XmlElement || node.name.local != 'defs') continue;
+      for (final defNode in node.children) {
+        if (defNode is! XmlElement) continue;
+        final defId = defNode.getAttribute('id');
+        if (defId == null) continue;
+        if (defNode.name.local.endsWith('Gradient')) {
+          _defs[defId] = defNode;
         } else {
-          final el = _parseElement(node);
-          if (el != null) elements.add(el);
+          rawDefs[defId] = defNode;
         }
+      }
+    }
+
+    // Pass 2 — parse those definitions into the document. They are not painted
+    // (see VxDocument.defs) but must exist so that mask="url(#id)",
+    // clip-path="url(#id)" and <use href="#id"> resolve at paint time instead
+    // of being silently dropped. Finding P0-4.
+    for (final entry in rawDefs.entries) {
+      final parsed = _parseElement(entry.value);
+      if (parsed != null) defs[entry.key] = parsed;
+    }
+
+    // Pass 3 — top-level artwork.
+    for (final node in svgRoot.children) {
+      if (node is XmlElement && node.name.local != 'defs') {
+        final el = _parseElement(node);
+        if (el != null) elements.add(el);
       }
     }
 
@@ -64,6 +85,7 @@ class SvgImporter {
         width: width,
         height: height,
         elements: elements,
+        defs: defs,
         title: 'Imported SVG',
       );
     } catch (e) {

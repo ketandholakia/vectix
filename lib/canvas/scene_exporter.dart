@@ -1064,6 +1064,9 @@ class SceneExporter {
   }
 
   static VxElement? _resolve(VxDocument document, String refId) {
+    // Document definitions (masks / clip paths / symbols) first, then artwork.
+    final def = document.defs[refId];
+    if (def != null) return def;
     for (final el in document.elements) {
       final found = _resolveElement(el, refId);
       if (found != null) return found;

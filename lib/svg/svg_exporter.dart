@@ -24,16 +24,43 @@ class SvgExporter {
         'viewBox': '0 0 $width $height',
       },
       nest: () {
-        // Create defs for gradients
+        final defTags = _collectReferenceTags(doc);
+        final writtenDefIds = <String>{};
         builder.element(
           'defs',
           nest: () {
-            for (final el in doc.elements) {
-              _writeDefsForElement(builder, el);
+            // 1. Definitions carried by the document: <mask>, <clipPath>,
+            //    <symbol> and clip/mask sources. Not painted as artwork.
+            for (final entry in doc.defs.entries) {
+              _writeDocumentDef(
+                builder,
+                entry.key,
+                entry.value,
+                defTags,
+                writtenDefIds,
+              );
             }
+            // 2. Gradient definitions, derived from the elements that use them.
             for (final el in doc.elements) {
-              _writeReferencedDef(builder, doc, el.clipPathId, 'clipPath');
-              _writeReferencedDef(builder, doc, el.maskId, 'mask');
+              _writeDefsForElement(builder, el, writtenDefIds);
+            }
+            // 3. Legacy fallback for references that point at ordinary
+            //    artwork (documents saved before definitions were modelled).
+            for (final el in doc.elements) {
+              _writeReferencedDef(
+                builder,
+                doc,
+                el.clipPathId,
+                'clipPath',
+                writtenDefIds,
+              );
+              _writeReferencedDef(
+                builder,
+                doc,
+                el.maskId,
+                'mask',
+                writtenDefIds,
+              );
             }
           },
         );
@@ -48,26 +75,86 @@ class SvgExporter {
     return builder.buildDocument().toXmlString(pretty: true);
   }
 
-  static void _writeDefsForElement(XmlBuilder b, VxElement el) {
+  /// Which SVG tag each definition must be written as, derived from how the
+  /// document references it (`mask=` vs `clip-path=`).
+  static Map<String, String> _collectReferenceTags(VxDocument doc) {
+    final tags = <String, String>{};
+    void visit(VxElement el) {
+      final mask = el.maskId;
+      if (mask != null) tags[mask] = 'mask';
+      final clip = el.clipPathId;
+      if (clip != null) tags[clip] = 'clipPath';
+      for (final child in _childrenOf(el)) {
+        visit(child);
+      }
+    }
+
+    for (final el in doc.elements) {
+      visit(el);
+    }
+    for (final el in doc.defs.values) {
+      visit(el);
+    }
+    return tags;
+  }
+
+  static List<VxElement> _childrenOf(VxElement el) {
+    return el.mapOrNull(
+          group: (e) => e.children,
+          compound: (e) => e.children,
+          symbol: (e) => e.children,
+        ) ??
+        const <VxElement>[];
+  }
+
+  /// Writes the body of a definition wrapper. Containers contribute their
+  /// children directly (so `<mask id="x"><g id="x">` cannot happen); a leaf
+  /// definition is written under a derived id to keep wrapper ids unique.
+  static void _writeDefBody(XmlBuilder b, VxElement element) {
+    final children = _childrenOf(element);
+    if (children.isNotEmpty) {
+      for (final child in children) {
+        _writeElement(b, child);
+      }
+      return;
+    }
+    _writeElement(b, element.copyWith(id: '${element.id}__src'));
+  }
+
+  static void _writeDocumentDef(
+    XmlBuilder b,
+    String id,
+    VxElement element,
+    Map<String, String> referenceTags,
+    Set<String> written,
+  ) {
+    if (!written.add(id)) return;
+    final tag = referenceTags[id] ?? (element is VxSymbol ? 'symbol' : 'g');
+    b.element(
+      tag,
+      attributes: {'id': id},
+      nest: () => _writeDefBody(b, element),
+    );
+  }
+
+  static void _writeDefsForElement(
+    XmlBuilder b,
+    VxElement el,
+    Set<String> written,
+  ) {
     el.mapOrNull(
       rect: (e) => _writeFillDef(b, e.fill, e.id),
       ellipse: (e) => _writeFillDef(b, e.fill, e.id),
       path: (e) => _writeFillDef(b, e.fill, e.id),
       compound: (e) {
         _writeFillDef(b, e.fill, e.id);
-        for (final c in e.children) _writeDefsForElement(b, c);
+        for (final c in e.children) _writeDefsForElement(b, c, written);
       },
       group: (e) {
-        for (final c in e.children) _writeDefsForElement(b, c);
+        for (final c in e.children) _writeDefsForElement(b, c, written);
       },
       symbol: (e) {
-        b.element(
-          'symbol',
-          attributes: {'id': e.id},
-          nest: () {
-            for (final c in e.children) _writeElement(b, c);
-          },
-        );
+        _writeDocumentDef(b, e.id, e, const {}, written);
       },
     );
   }
@@ -77,14 +164,17 @@ class SvgExporter {
     VxDocument doc,
     String? refId,
     String tagName,
+    Set<String> written,
   ) {
     if (refId == null) return;
+    if (written.contains(refId)) return;
     final target = _findElementById(doc.elements, refId);
     if (target == null) return;
+    written.add(refId);
     b.element(
       tagName,
       attributes: {'id': refId},
-      nest: () => _writeElement(b, target),
+      nest: () => _writeDefBody(b, target),
     );
   }
 

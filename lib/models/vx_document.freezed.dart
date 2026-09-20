@@ -296,7 +296,13 @@ as bool,
 /// @nodoc
 mixin _$VxDocument {
 
- String get id; int get version; double get width; double get height; List<VxElement> get elements; List<VxArtboard> get artboards; String get title; Map<String, dynamic> get metadata; int get pageCount; int get activePageIndex; String get artboardMode;
+ String get id; int get version; double get width; double get height; List<VxElement> get elements; List<VxArtboard> get artboards; String get title; Map<String, dynamic> get metadata; int get pageCount; int get activePageIndex; String get artboardMode;/// Non-rendered reference definitions, keyed by id: `<mask>`, `<clipPath>`,
+/// `<symbol>` and any element used as a clip/mask source.
+///
+/// These are *not* painted as artwork — only resolved through
+/// `maskId` / `clipPathId` / `VxUse.href` (finding P0-4: definitions living
+/// in `<defs>` used to be discarded on import).
+ Map<String, VxElement> get defs;
 /// Create a copy of VxDocument
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -309,16 +315,16 @@ $VxDocumentCopyWith<VxDocument> get copyWith => _$VxDocumentCopyWithImpl<VxDocum
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is VxDocument&&(identical(other.id, id) || other.id == id)&&(identical(other.version, version) || other.version == version)&&(identical(other.width, width) || other.width == width)&&(identical(other.height, height) || other.height == height)&&const DeepCollectionEquality().equals(other.elements, elements)&&const DeepCollectionEquality().equals(other.artboards, artboards)&&(identical(other.title, title) || other.title == title)&&const DeepCollectionEquality().equals(other.metadata, metadata)&&(identical(other.pageCount, pageCount) || other.pageCount == pageCount)&&(identical(other.activePageIndex, activePageIndex) || other.activePageIndex == activePageIndex)&&(identical(other.artboardMode, artboardMode) || other.artboardMode == artboardMode));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is VxDocument&&(identical(other.id, id) || other.id == id)&&(identical(other.version, version) || other.version == version)&&(identical(other.width, width) || other.width == width)&&(identical(other.height, height) || other.height == height)&&const DeepCollectionEquality().equals(other.elements, elements)&&const DeepCollectionEquality().equals(other.artboards, artboards)&&(identical(other.title, title) || other.title == title)&&const DeepCollectionEquality().equals(other.metadata, metadata)&&(identical(other.pageCount, pageCount) || other.pageCount == pageCount)&&(identical(other.activePageIndex, activePageIndex) || other.activePageIndex == activePageIndex)&&(identical(other.artboardMode, artboardMode) || other.artboardMode == artboardMode)&&const DeepCollectionEquality().equals(other.defs, defs));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,version,width,height,const DeepCollectionEquality().hash(elements),const DeepCollectionEquality().hash(artboards),title,const DeepCollectionEquality().hash(metadata),pageCount,activePageIndex,artboardMode);
+int get hashCode => Object.hash(runtimeType,id,version,width,height,const DeepCollectionEquality().hash(elements),const DeepCollectionEquality().hash(artboards),title,const DeepCollectionEquality().hash(metadata),pageCount,activePageIndex,artboardMode,const DeepCollectionEquality().hash(defs));
 
 @override
 String toString() {
-  return 'VxDocument(id: $id, version: $version, width: $width, height: $height, elements: $elements, artboards: $artboards, title: $title, metadata: $metadata, pageCount: $pageCount, activePageIndex: $activePageIndex, artboardMode: $artboardMode)';
+  return 'VxDocument(id: $id, version: $version, width: $width, height: $height, elements: $elements, artboards: $artboards, title: $title, metadata: $metadata, pageCount: $pageCount, activePageIndex: $activePageIndex, artboardMode: $artboardMode, defs: $defs)';
 }
 
 
@@ -329,7 +335,7 @@ abstract mixin class $VxDocumentCopyWith<$Res>  {
   factory $VxDocumentCopyWith(VxDocument value, $Res Function(VxDocument) _then) = _$VxDocumentCopyWithImpl;
 @useResult
 $Res call({
- String id, int version, double width, double height, List<VxElement> elements, List<VxArtboard> artboards, String title, Map<String, dynamic> metadata, int pageCount, int activePageIndex, String artboardMode
+ String id, int version, double width, double height, List<VxElement> elements, List<VxArtboard> artboards, String title, Map<String, dynamic> metadata, int pageCount, int activePageIndex, String artboardMode, Map<String, VxElement> defs
 });
 
 
@@ -346,7 +352,7 @@ class _$VxDocumentCopyWithImpl<$Res>
 
 /// Create a copy of VxDocument
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? version = null,Object? width = null,Object? height = null,Object? elements = null,Object? artboards = null,Object? title = null,Object? metadata = null,Object? pageCount = null,Object? activePageIndex = null,Object? artboardMode = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? version = null,Object? width = null,Object? height = null,Object? elements = null,Object? artboards = null,Object? title = null,Object? metadata = null,Object? pageCount = null,Object? activePageIndex = null,Object? artboardMode = null,Object? defs = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,version: null == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
@@ -359,7 +365,8 @@ as String,metadata: null == metadata ? _self.metadata : metadata // ignore: cast
 as Map<String, dynamic>,pageCount: null == pageCount ? _self.pageCount : pageCount // ignore: cast_nullable_to_non_nullable
 as int,activePageIndex: null == activePageIndex ? _self.activePageIndex : activePageIndex // ignore: cast_nullable_to_non_nullable
 as int,artboardMode: null == artboardMode ? _self.artboardMode : artboardMode // ignore: cast_nullable_to_non_nullable
-as String,
+as String,defs: null == defs ? _self.defs : defs // ignore: cast_nullable_to_non_nullable
+as Map<String, VxElement>,
   ));
 }
 
@@ -444,10 +451,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  int version,  double width,  double height,  List<VxElement> elements,  List<VxArtboard> artboards,  String title,  Map<String, dynamic> metadata,  int pageCount,  int activePageIndex,  String artboardMode)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  int version,  double width,  double height,  List<VxElement> elements,  List<VxArtboard> artboards,  String title,  Map<String, dynamic> metadata,  int pageCount,  int activePageIndex,  String artboardMode,  Map<String, VxElement> defs)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _VxDocument() when $default != null:
-return $default(_that.id,_that.version,_that.width,_that.height,_that.elements,_that.artboards,_that.title,_that.metadata,_that.pageCount,_that.activePageIndex,_that.artboardMode);case _:
+return $default(_that.id,_that.version,_that.width,_that.height,_that.elements,_that.artboards,_that.title,_that.metadata,_that.pageCount,_that.activePageIndex,_that.artboardMode,_that.defs);case _:
   return orElse();
 
 }
@@ -465,10 +472,10 @@ return $default(_that.id,_that.version,_that.width,_that.height,_that.elements,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  int version,  double width,  double height,  List<VxElement> elements,  List<VxArtboard> artboards,  String title,  Map<String, dynamic> metadata,  int pageCount,  int activePageIndex,  String artboardMode)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  int version,  double width,  double height,  List<VxElement> elements,  List<VxArtboard> artboards,  String title,  Map<String, dynamic> metadata,  int pageCount,  int activePageIndex,  String artboardMode,  Map<String, VxElement> defs)  $default,) {final _that = this;
 switch (_that) {
 case _VxDocument():
-return $default(_that.id,_that.version,_that.width,_that.height,_that.elements,_that.artboards,_that.title,_that.metadata,_that.pageCount,_that.activePageIndex,_that.artboardMode);case _:
+return $default(_that.id,_that.version,_that.width,_that.height,_that.elements,_that.artboards,_that.title,_that.metadata,_that.pageCount,_that.activePageIndex,_that.artboardMode,_that.defs);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -485,10 +492,10 @@ return $default(_that.id,_that.version,_that.width,_that.height,_that.elements,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  int version,  double width,  double height,  List<VxElement> elements,  List<VxArtboard> artboards,  String title,  Map<String, dynamic> metadata,  int pageCount,  int activePageIndex,  String artboardMode)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  int version,  double width,  double height,  List<VxElement> elements,  List<VxArtboard> artboards,  String title,  Map<String, dynamic> metadata,  int pageCount,  int activePageIndex,  String artboardMode,  Map<String, VxElement> defs)?  $default,) {final _that = this;
 switch (_that) {
 case _VxDocument() when $default != null:
-return $default(_that.id,_that.version,_that.width,_that.height,_that.elements,_that.artboards,_that.title,_that.metadata,_that.pageCount,_that.activePageIndex,_that.artboardMode);case _:
+return $default(_that.id,_that.version,_that.width,_that.height,_that.elements,_that.artboards,_that.title,_that.metadata,_that.pageCount,_that.activePageIndex,_that.artboardMode,_that.defs);case _:
   return null;
 
 }
@@ -500,7 +507,7 @@ return $default(_that.id,_that.version,_that.width,_that.height,_that.elements,_
 @JsonSerializable()
 
 class _VxDocument implements VxDocument {
-  const _VxDocument({required this.id, this.version = 1, required this.width, required this.height, required final  List<VxElement> elements, final  List<VxArtboard> artboards = const <VxArtboard>[], required this.title, final  Map<String, dynamic> metadata = const <String, dynamic>{}, this.pageCount = 1, this.activePageIndex = 0, this.artboardMode = 'single'}): _elements = elements,_artboards = artboards,_metadata = metadata;
+  const _VxDocument({required this.id, this.version = 1, required this.width, required this.height, required final  List<VxElement> elements, final  List<VxArtboard> artboards = const <VxArtboard>[], required this.title, final  Map<String, dynamic> metadata = const <String, dynamic>{}, this.pageCount = 1, this.activePageIndex = 0, this.artboardMode = 'single', final  Map<String, VxElement> defs = const <String, VxElement>{}}): _elements = elements,_artboards = artboards,_metadata = metadata,_defs = defs;
   factory _VxDocument.fromJson(Map<String, dynamic> json) => _$VxDocumentFromJson(json);
 
 @override final  String id;
@@ -532,6 +539,25 @@ class _VxDocument implements VxDocument {
 @override@JsonKey() final  int pageCount;
 @override@JsonKey() final  int activePageIndex;
 @override@JsonKey() final  String artboardMode;
+/// Non-rendered reference definitions, keyed by id: `<mask>`, `<clipPath>`,
+/// `<symbol>` and any element used as a clip/mask source.
+///
+/// These are *not* painted as artwork — only resolved through
+/// `maskId` / `clipPathId` / `VxUse.href` (finding P0-4: definitions living
+/// in `<defs>` used to be discarded on import).
+ final  Map<String, VxElement> _defs;
+/// Non-rendered reference definitions, keyed by id: `<mask>`, `<clipPath>`,
+/// `<symbol>` and any element used as a clip/mask source.
+///
+/// These are *not* painted as artwork — only resolved through
+/// `maskId` / `clipPathId` / `VxUse.href` (finding P0-4: definitions living
+/// in `<defs>` used to be discarded on import).
+@override@JsonKey() Map<String, VxElement> get defs {
+  if (_defs is EqualUnmodifiableMapView) return _defs;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(_defs);
+}
+
 
 /// Create a copy of VxDocument
 /// with the given fields replaced by the non-null parameter values.
@@ -546,16 +572,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _VxDocument&&(identical(other.id, id) || other.id == id)&&(identical(other.version, version) || other.version == version)&&(identical(other.width, width) || other.width == width)&&(identical(other.height, height) || other.height == height)&&const DeepCollectionEquality().equals(other._elements, _elements)&&const DeepCollectionEquality().equals(other._artboards, _artboards)&&(identical(other.title, title) || other.title == title)&&const DeepCollectionEquality().equals(other._metadata, _metadata)&&(identical(other.pageCount, pageCount) || other.pageCount == pageCount)&&(identical(other.activePageIndex, activePageIndex) || other.activePageIndex == activePageIndex)&&(identical(other.artboardMode, artboardMode) || other.artboardMode == artboardMode));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _VxDocument&&(identical(other.id, id) || other.id == id)&&(identical(other.version, version) || other.version == version)&&(identical(other.width, width) || other.width == width)&&(identical(other.height, height) || other.height == height)&&const DeepCollectionEquality().equals(other._elements, _elements)&&const DeepCollectionEquality().equals(other._artboards, _artboards)&&(identical(other.title, title) || other.title == title)&&const DeepCollectionEquality().equals(other._metadata, _metadata)&&(identical(other.pageCount, pageCount) || other.pageCount == pageCount)&&(identical(other.activePageIndex, activePageIndex) || other.activePageIndex == activePageIndex)&&(identical(other.artboardMode, artboardMode) || other.artboardMode == artboardMode)&&const DeepCollectionEquality().equals(other._defs, _defs));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,version,width,height,const DeepCollectionEquality().hash(_elements),const DeepCollectionEquality().hash(_artboards),title,const DeepCollectionEquality().hash(_metadata),pageCount,activePageIndex,artboardMode);
+int get hashCode => Object.hash(runtimeType,id,version,width,height,const DeepCollectionEquality().hash(_elements),const DeepCollectionEquality().hash(_artboards),title,const DeepCollectionEquality().hash(_metadata),pageCount,activePageIndex,artboardMode,const DeepCollectionEquality().hash(_defs));
 
 @override
 String toString() {
-  return 'VxDocument(id: $id, version: $version, width: $width, height: $height, elements: $elements, artboards: $artboards, title: $title, metadata: $metadata, pageCount: $pageCount, activePageIndex: $activePageIndex, artboardMode: $artboardMode)';
+  return 'VxDocument(id: $id, version: $version, width: $width, height: $height, elements: $elements, artboards: $artboards, title: $title, metadata: $metadata, pageCount: $pageCount, activePageIndex: $activePageIndex, artboardMode: $artboardMode, defs: $defs)';
 }
 
 
@@ -566,7 +592,7 @@ abstract mixin class _$VxDocumentCopyWith<$Res> implements $VxDocumentCopyWith<$
   factory _$VxDocumentCopyWith(_VxDocument value, $Res Function(_VxDocument) _then) = __$VxDocumentCopyWithImpl;
 @override @useResult
 $Res call({
- String id, int version, double width, double height, List<VxElement> elements, List<VxArtboard> artboards, String title, Map<String, dynamic> metadata, int pageCount, int activePageIndex, String artboardMode
+ String id, int version, double width, double height, List<VxElement> elements, List<VxArtboard> artboards, String title, Map<String, dynamic> metadata, int pageCount, int activePageIndex, String artboardMode, Map<String, VxElement> defs
 });
 
 
@@ -583,7 +609,7 @@ class __$VxDocumentCopyWithImpl<$Res>
 
 /// Create a copy of VxDocument
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? version = null,Object? width = null,Object? height = null,Object? elements = null,Object? artboards = null,Object? title = null,Object? metadata = null,Object? pageCount = null,Object? activePageIndex = null,Object? artboardMode = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? version = null,Object? width = null,Object? height = null,Object? elements = null,Object? artboards = null,Object? title = null,Object? metadata = null,Object? pageCount = null,Object? activePageIndex = null,Object? artboardMode = null,Object? defs = null,}) {
   return _then(_VxDocument(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,version: null == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
@@ -596,7 +622,8 @@ as String,metadata: null == metadata ? _self._metadata : metadata // ignore: cas
 as Map<String, dynamic>,pageCount: null == pageCount ? _self.pageCount : pageCount // ignore: cast_nullable_to_non_nullable
 as int,activePageIndex: null == activePageIndex ? _self.activePageIndex : activePageIndex // ignore: cast_nullable_to_non_nullable
 as int,artboardMode: null == artboardMode ? _self.artboardMode : artboardMode // ignore: cast_nullable_to_non_nullable
-as String,
+as String,defs: null == defs ? _self._defs : defs // ignore: cast_nullable_to_non_nullable
+as Map<String, VxElement>,
   ));
 }
 
