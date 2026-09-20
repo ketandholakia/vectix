@@ -15,12 +15,12 @@ class TransformCommand implements Command {
 
   @override
   void execute(EditorNotifier editor) {
-    editor.replaceElements(_replace(editor.state.document.elements, newElements));
+    editor.replaceElements(_replace(editor.elements, newElements));
   }
 
   @override
   void undo(EditorNotifier editor) {
-    editor.replaceElements(_replace(editor.state.document.elements, oldElements));
+    editor.replaceElements(_replace(editor.elements, oldElements));
   }
 
   @override

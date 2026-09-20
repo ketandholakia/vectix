@@ -26,6 +26,15 @@ class EditorNotifier extends Notifier<EditorState> {
     return EditorState.initial();
   }
 
+  /// Command-facing read accessors.
+  ///
+  /// Commands must not touch `state` directly: Riverpod marks it protected, and
+  /// reaching into it produced ~46 analyzer warnings across the command layer
+  /// (finding P2-8). Read through these, mutate through the public methods.
+  VxDocument get document => state.document;
+  List<VxElement> get elements => state.document.elements;
+  Set<String> get selectedIds => state.selectedIds;
+
   void setTool(ActiveTool tool) {
     state = state.copyWith(activeTool: tool);
   }

@@ -20,9 +20,9 @@ void recordDocumentEdit({
   required String actionName,
   required void Function() mutate,
 }) {
-  final before = editor.state.document;
+  final before = editor.document;
   mutate();
-  final after = editor.state.document;
+  final after = editor.document;
   if (identical(before, after) || before == after) return;
   history.execute(
     ReplaceDocumentCommand(

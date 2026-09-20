@@ -20,7 +20,7 @@ class UngroupCommand implements Command {
 
   @override
   void execute(EditorNotifier editor) {
-    final elements = editor.state.document.elements;
+    final elements = editor.elements;
     _groupIndex = elements.indexWhere((e) => e.id == oldGroup.id);
     editor.replaceElements(
       spliceElements(
@@ -39,7 +39,7 @@ class UngroupCommand implements Command {
   void undo(EditorNotifier editor) {
     editor.replaceElements(
       spliceElements(
-        editor.state.document.elements,
+        editor.elements,
         removedIds: newElements.map((e) => e.id).toSet(),
         index: _groupIndex < 0 ? 0 : _groupIndex,
         inserted: [oldGroup],

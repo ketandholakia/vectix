@@ -43,7 +43,7 @@ class BooleanOperationCommand implements Command {
 
   @override
   void execute(EditorNotifier editor) {
-    final elements = editor.state.document.elements;
+    final elements = editor.elements;
     _sourceIndices = indicesOf(elements, oldElements.map((e) => e.id));
     _compoundIndex = containerInsertIndex(_sourceIndices, elements);
     editor.replaceElements(
@@ -61,7 +61,7 @@ class BooleanOperationCommand implements Command {
   void undo(EditorNotifier editor) {
     // The operands come back at their original z-positions, not on top.
     final restored = reinsertElements(
-      withoutIds(editor.state.document.elements, {newElement.id}),
+      withoutIds(editor.elements, {newElement.id}),
       [
         for (var i = 0; i < oldElements.length; i++)
           MapEntry(_sourceIndices[i], oldElements[i]),

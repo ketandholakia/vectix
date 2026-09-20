@@ -16,14 +16,14 @@ class UpdateElementCommand implements Command {
   @override
   void execute(EditorNotifier editor) {
     editor.replaceElements(
-      _replace(editor.state.document.elements, newElements),
+      _replace(editor.elements, newElements),
     );
   }
 
   @override
   void undo(EditorNotifier editor) {
     editor.replaceElements(
-      _replace(editor.state.document.elements, oldElements),
+      _replace(editor.elements, oldElements),
     );
   }
 

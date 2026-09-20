@@ -16,14 +16,14 @@ class UpdatePathNodeCommand implements Command {
   @override
   void execute(EditorNotifier editor) {
     editor.replaceElements(
-      _replace(editor.state.document.elements, newElement),
+      _replace(editor.elements, newElement),
     );
   }
 
   @override
   void undo(EditorNotifier editor) {
     editor.replaceElements(
-      _replace(editor.state.document.elements, oldElement),
+      _replace(editor.elements, oldElement),
     );
   }
 

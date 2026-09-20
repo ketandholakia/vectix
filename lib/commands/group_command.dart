@@ -22,7 +22,7 @@ class GroupCommand implements Command {
 
   @override
   void execute(EditorNotifier editor) {
-    final elements = editor.state.document.elements;
+    final elements = editor.elements;
     _originalIndices = indicesOf(elements, oldElements.map((e) => e.id));
     _groupIndex = containerInsertIndex(_originalIndices, elements);
     editor.replaceElements(
@@ -41,7 +41,7 @@ class GroupCommand implements Command {
     // Restore the members at their original indices, not appended to the end:
     // appending silently reordered the layers (found by the C1 undo test).
     final restored = reinsertElements(
-      withoutIds(editor.state.document.elements, {newGroup.id}),
+      withoutIds(editor.elements, {newGroup.id}),
       [
         for (var i = 0; i < oldElements.length; i++)
           MapEntry(_originalIndices[i], oldElements[i]),

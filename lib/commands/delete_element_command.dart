@@ -12,17 +12,17 @@ class DeleteElementCommand implements Command {
   void execute(EditorNotifier editor) {
     _originalIndices
       ..clear()
-      ..addAll(elements.map((el) => editor.state.document.elements.indexWhere((e) => e.id == el.id)));
+      ..addAll(elements.map((el) => editor.elements.indexWhere((e) => e.id == el.id)));
     final ids = elements.map((e) => e.id).toSet();
-    editor.replaceElements(editor.state.document.elements.where((e) => !ids.contains(e.id)).toList());
+    editor.replaceElements(editor.elements.where((e) => !ids.contains(e.id)).toList());
     
-    final newSelection = editor.state.selectedIds.where((id) => !ids.contains(id)).toSet();
+    final newSelection = editor.selectedIds.where((id) => !ids.contains(id)).toSet();
     editor.setSelection(newSelection);
   }
 
   @override
   void undo(EditorNotifier editor) {
-    final restored = List<VxElement>.from(editor.state.document.elements);
+    final restored = List<VxElement>.from(editor.elements);
     final pairs = List.generate(elements.length, (i) => MapEntry(_originalIndices[i], elements[i]))
       ..sort((a, b) => a.key.compareTo(b.key));
     for (final pair in pairs.reversed) {
@@ -34,7 +34,7 @@ class DeleteElementCommand implements Command {
     }
     editor.replaceElements(restored);
     
-    final restoredSelection = Set<String>.from(editor.state.selectedIds)..addAll(elements.map((e) => e.id));
+    final restoredSelection = Set<String>.from(editor.selectedIds)..addAll(elements.map((e) => e.id));
     editor.setSelection(restoredSelection);
   }
 
