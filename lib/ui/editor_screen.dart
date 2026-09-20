@@ -33,6 +33,7 @@ import '../models/vx_element.dart';
 import '../services/shortcut_service.dart';
 import 'package:uuid/uuid.dart';
 import '../services/clipboard_service.dart';
+import '../services/project_session.dart';
 import '../commands/add_element_command.dart';
 class EditorScreen extends ConsumerStatefulWidget {
   const EditorScreen({super.key});
@@ -47,6 +48,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   static const _presetStoreFile = 'export_presets.json';
 
   @override
+  void initState() {
+    super.initState();
+    // A recovery snapshot on disk means the previous session ended with unsaved
+    // work (finding P1-12).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkForRecovery());
+  }
+
+  @override
   Widget build(BuildContext context) {
     final viewport = ref.watch(
       editorProvider.select((state) => state.viewport),
@@ -56,9 +65,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     final activeTool = ref.watch(toolProvider);
     final toolSettingsHeight = _toolSettingsHeight(activeTool);
 
+    final session = ref.watch(projectSessionProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Vectix'),
+        title: Text(session.displayTitle),
         elevation: 0,
         backgroundColor: Colors.grey[900],
         foregroundColor: Colors.white,
@@ -221,6 +231,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               } else if (value == 'export_pdf') {
                 _showPdfExportDialog(context, ref);
               } else if (value == 'import_svg') {
+                // Guarded: importing replaces the document (finding P1-12).
+                if (!await _confirmDestructive(ref, context, 'Importing an SVG')) {
+                  return;
+                }
                 final result = await FilePicker.platform.pickFiles(
                   type: FileType.custom,
                   allowedExtensions: ['svg'],
@@ -231,6 +245,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   final doc = SvgImporter.import(xmlString);
                   if (doc != null) {
                     ref.read(editorProvider.notifier).loadDocument(doc);
+                    ref.read(projectSessionProvider.notifier).markNew();
                   } else if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -262,7 +277,21 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                 }
               } else if (value == 'save_project') {
                 await _saveProject(ref, context);
+              } else if (value == 'save_project_as') {
+                await _saveProject(ref, context, saveAs: true);
+              } else if (value == 'new_project') {
+                if (!await _confirmDestructive(ref, context, 'Starting a new project')) {
+                  return;
+                }
+                ref.read(editorProvider.notifier).loadDocument(
+                  EditorState.initial().document,
+                );
+                ref.read(projectSessionProvider.notifier).markNew();
               } else if (value == 'open_project') {
+                // Guarded: opening replaces the document (finding P1-12).
+                if (!await _confirmDestructive(ref, context, 'Opening another project')) {
+                  return;
+                }
                 try {
                   final result = await FilePicker.platform.pickFiles(
                     type: (Platform.isAndroid || Platform.isIOS)
@@ -289,19 +318,29 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     final json = jsonDecode(jsonString) as Map<String, dynamic>;
                     final parsedDoc = VxDocument.fromJson(json);
                     ref.read(editorProvider.notifier).loadDocument(parsedDoc);
+                    ref
+                        .read(projectSessionProvider.notifier)
+                        .markOpened(result.files.single.path!);
+                    await ref.read(projectSessionProvider.notifier).clearRecovery();
                     if (context.mounted)
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Project loaded.')),
                       );
                   }
                 } catch (e) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('Open error: $e')));
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text('Open error: $e')));
+                  }
                 }
               }
             },
             itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'new_project',
+                child: Text('New Project'),
+              ),
               const PopupMenuItem(
                 value: 'open_project',
                 child: Text('Open Project (.vxp)'),
@@ -309,6 +348,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               const PopupMenuItem(
                 value: 'save_project',
                 child: Text('Save Project (.vxp)'),
+              ),
+              const PopupMenuItem(
+                value: 'save_project_as',
+                child: Text('Save Project As…'),
               ),
               const PopupMenuDivider(),
               const PopupMenuItem(
@@ -722,16 +765,23 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     return const SizedBox.shrink();
   }
 
-  Future<void> _saveProject(WidgetRef ref, BuildContext context) async {
+  Future<bool> _saveProject(
+    WidgetRef ref,
+    BuildContext context, {
+    bool saveAs = false,
+  }) async {
     try {
       final document = ref.read(editorProvider).document;
       final jsonString = jsonEncode(document.toJson());
+      final session = ref.read(projectSessionProvider);
+      final sessionNotifier = ref.read(projectSessionProvider.notifier);
 
       if (Platform.isAndroid || Platform.isIOS) {
         final directory = await getApplicationDocumentsDirectory();
         final path = '${directory.path}/${document.title}.vxp';
-        final file = File(path);
-        await file.writeAsString(jsonString);
+        await File(path).writeAsString(jsonString);
+        sessionNotifier.markSaved(path);
+        await sessionNotifier.clearRecovery();
         await Share.shareXFiles([
           XFile(path),
         ], text: 'Vectix Project');
@@ -740,34 +790,138 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             const SnackBar(content: Text('Project ready for export.')),
           );
         }
-      } else {
-        // Fix for FilePicker on Windows: passing filename without explicit extension
-        // and safely ensuring `.vxp` is added.
-        final title = document.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-        String? path = await FilePicker.platform.saveFile(
-          dialogTitle: 'Save Vectix Project',
-          fileName: title,
-          type: FileType.custom,
-          allowedExtensions: ['vxp'],
-        );
-        if (path != null) {
-          if (!path.toLowerCase().endsWith('.vxp')) {
-            path = '$path.vxp';
-          }
-          await File(path).writeAsString(jsonString);
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Project saved.')),
-            );
-          }
-        }
+        return true;
       }
+
+      // Reuse the known path, so Ctrl+S is a real quick-save rather than a
+      // Save-As dialog every time. `saveAs` forces the picker.
+      String? path = saveAs ? null : session.path;
+      path ??= await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Vectix Project',
+        fileName: _safeFileName(document.title),
+        type: FileType.custom,
+        allowedExtensions: ['vxp'],
+      );
+      if (path == null) return false; // The user cancelled the picker.
+      if (!path.toLowerCase().endsWith('.vxp')) {
+        path = '$path.vxp';
+      }
+      await File(path).writeAsString(jsonString);
+      sessionNotifier.markSaved(path);
+      await sessionNotifier.clearRecovery();
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Project saved.')));
+      }
+      return true;
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Save error: $e')));
       }
+      return false;
+    }
+  }
+
+  String _safeFileName(String title) =>
+      title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+
+  /// Asks about unsaved work before an action that would replace the document.
+  ///
+  /// Returns false when the user cancels, in which case the caller must not
+  /// proceed (finding P1-12: open and import used to discard work silently).
+  Future<bool> _confirmDestructive(
+    WidgetRef ref,
+    BuildContext context,
+    String action,
+  ) async {
+    final session = ref.read(projectSessionProvider);
+    return resolveUnsavedChanges(
+      dirty: session.dirty,
+      ask: () {
+        if (!context.mounted) return Future<UnsavedChoice?>.value(null);
+        return showDialog<UnsavedChoice>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Unsaved changes'),
+            content: Text(
+              '$action will discard unsaved changes to ${session.fileName}.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () =>
+                    Navigator.pop(dialogContext, UnsavedChoice.discard),
+                child: const Text('Discard'),
+              ),
+              ElevatedButton(
+                onPressed: () =>
+                    Navigator.pop(dialogContext, UnsavedChoice.save),
+                child: const Text('Save first'),
+              ),
+            ],
+          ),
+        );
+      },
+      save: () => _saveProject(ref, context),
+    );
+  }
+
+  /// Offers to restore a snapshot left behind by a previous session.
+  Future<void> _checkForRecovery() async {
+    final notifier = ref.read(projectSessionProvider.notifier);
+    final snapshot = await notifier.pendingRecovery();
+    if (snapshot == null || !mounted) return;
+
+    final restore = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Unsaved work found'),
+        content: Text(
+          'Vectix was closed with unsaved changes.\n\n'
+          'Snapshot from ${snapshot.savedAt.toLocal().toString().split('.').first}'
+          '${snapshot.projectPath == null ? '' : ' for ${_safeFileName(snapshot.projectPath!)}'}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Discard'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Restore'),
+          ),
+        ],
+      ),
+    );
+
+    if (restore != true) {
+      await notifier.clearRecovery();
+      return;
+    }
+
+    try {
+      final document = VxDocument.fromJson(
+        jsonDecode(snapshot.json) as Map<String, dynamic>,
+      );
+      ref.read(editorProvider.notifier).loadDocument(document);
+      final path = snapshot.projectPath;
+      if (path != null) notifier.markRestored(path);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unsaved work restored.')),
+      );
+    } catch (e) {
+      await notifier.clearRecovery();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not restore: $e')));
     }
   }
 
