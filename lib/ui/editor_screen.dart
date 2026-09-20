@@ -349,51 +349,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           onKeyEvent: (node, event) {
             if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
-            // Save
-            if (event.logicalKey == LogicalKeyboardKey.keyS &&
-                HardwareKeyboard.instance.isControlPressed) {
-              final document = ref.read(editorProvider).document;
-              final svgString = SvgExporter.export(document);
-
-              if (Platform.isAndroid || Platform.isIOS) {
-                getApplicationDocumentsDirectory().then((dir) {
-                  final path = '${dir.path}/${document.title}.svg';
-                  File(path).writeAsString(svgString).then((_) {
-                    Share.shareXFiles([XFile(path)], text: 'Exported SVG');
-                  });
-                });
-              } else {
-                FilePicker.platform
-                    .saveFile(
-                      dialogTitle: 'Save SVG',
-                      fileName: '${document.title}.svg',
-                      type: FileType.custom,
-                      allowedExtensions: ['svg'],
-                    )
-                    .then((path) {
-                      if (path != null) {
-                        File(path).writeAsString(svgString);
-                      }
-                    });
-              }
-              return KeyEventResult.handled;
-            }
-
-            // Undo/Redo
-            if (event.logicalKey == LogicalKeyboardKey.keyZ &&
-                HardwareKeyboard.instance.isControlPressed) {
-              if (HardwareKeyboard.instance.isShiftPressed) {
-                ref.read(historyProvider).redo();
-              } else {
-                ref.read(historyProvider).undo();
-              }
-              return KeyEventResult.handled;
-            }
-            if (event.logicalKey == LogicalKeyboardKey.keyY &&
-                HardwareKeyboard.instance.isControlPressed) {
-              ref.read(historyProvider).redo();
-              return KeyEventResult.handled;
-            }
+            // NOTE: Ctrl/Cmd+S, +Z, +Shift+Z, +Y, +C, +V and +D are owned by
+            // the enclosing ShortcutHandler. They used to be handled here too,
+            // which meant this (inner) Focus consumed the key first: Ctrl+S
+            // silently ran an *SVG export* instead of the project save that the
+            // toolbar tooltip advertises (finding P0-3). Keep exactly one owner
+            // of each shortcut — do not re-add these branches.
 
             // Delete
             if (event.logicalKey == LogicalKeyboardKey.delete ||
