@@ -18,6 +18,21 @@
 | **P0-4 pixel proof** | `flutter test test/mask_defs_regression_test.dart` (probe, 2026-09-20) | **CONFIRMED** — imported tree holds 1 element (the group); mask source absent; centre pixel `rgba(255,107,107,255)` where a correct mask requires `alpha = 0` |
 | Test suite after the 1-line fix in `test/export_fixture_test.dart` | `flutter test` | **17 passed, 1 skipped, exit 0** (was: does not compile) |
 
+### 0.1 Progress log
+
+| Commit | Change | Verified by |
+|---|---|---|
+| `162f432` | Baseline snapshot (`v0.9-pre-hardening`) — puts the project under version control for the first time | `git log`; 174 files, no build artifacts |
+| `3e94022` | **P1-1** `matrix()` parsed with SVG column-major semantics | `test/svg_transform_test.dart` (rotation, skew, export→import) |
+| `eacc6fa` | **P0-3** one owner per shortcut; Ctrl+S now saves the project | analyzer: 508 → 503 issues; single binding |
+| `c7c46cd` | **P0-4** document definition registry; masks/clip-paths/symbols resolve; mask renderer switched to luminance→alpha | `test/mask_defs_regression_test.dart` (pixel assertions + pixel-identical round trip) |
+| `843a241` | Regression tests enabled; masked golden regenerated (the old one encoded the unmasked render) | `flutter test`: **22 passed, 0 skipped** |
+
+Still open from Phase A: CI (A3, needs a remote), lint ratchet (A4), real README (A5).
+Still open from Phase B: B2 (default fill + presentation inheritance), B3 (colour grammar, rounded rects, stroke caps/joins/opacity, alpha), B4 (gradient geometry), B5 (artboard-aware SVG export), B6 (fidelity corpus).
+
+**A new finding surfaced while fixing P0-4** — the mask renderer drew the mask geometry with `BlendMode.dstIn` and a white paint, i.e. *alpha* masking. The mask's colours were ignored, so a black shape inside a mask hid nothing even after the reference resolved. Real SVG `<mask>` is luminance-based. Fixed alongside the registry (`c7c46cd`); this is why the defect was invisible in code review and only appeared under pixel testing — reinforce B6 (corpus + render hashes) before trusting any other fidelity claim.
+
 Everything below is either **read from source** (with `file:line` evidence) or **observed by running analyzer/tests**. Claims that need a running app are explicitly marked *needs runtime check* and are not asserted as fact.
 
 ---
@@ -144,19 +159,23 @@ final png = await SceneExporter.renderPng(document, ...);  // ← error
 ```
 `flutter test` therefore exits 1 on a clean checkout. Consequence: **the only end-to-end fidelity test in the project has never executed.** Fix: `final document = SvgImporter.import(svg); expect(document, isNotNull);` then `document!`, or change the signature to throw on malformed input. Then re-baseline `test/goldens/masked_group.png` (see P0-5 — it will change).
 
-### P0-2 · No version control at all
-`git status` → *not a git repository*. 10,864 lines of hand-written Dart with no history, no branch, no rollback, and a live `.gitignore` implying one was intended. Any of the refactors in §7 becomes a one-way door without this.
+### P0-2 · No version control at all  — **FIXED** in `162f432`
+~~`git status` → *not a git repository*.~~ 10,864 lines of hand-written Dart had no history, no branch, no rollback, and a live `.gitignore` implying one was intended. Baseline commit `162f432` now exists; branch clean.
 
 **First action of the plan:** `git init`, commit the current state as `v0.9-pre-hardening` (it will be the "before" reference for the fidelity corpus), then keep `/build/` and `.dart_tool/` ignored.
 
-### P0-3 · Ctrl+S silently exports an SVG instead of saving the project
+### P0-3 · Ctrl+S silently exports an SVG instead of saving the project  — **FIXED** in `eacc6fa`
+
+*(Diagnosis preserved below. The duplicated Ctrl+S / Ctrl+Z / Ctrl+Y branches were removed from the inner `Focus`; `ShortcutHandler` is now the single owner of Ctrl/Cmd+S, +Z, +Shift+Z, +Y, +C, +V, +D. Delete/Backspace and tool switching stay in the inner handler.)*
 Two `Focus` widgets both claim `autofocus` and both bind Ctrl+S:
 - `lib/services/shortcut_service.dart:47-48` → `onSave` → `_saveProject()` (`.vxp`) — the *intended* behaviour, matching the AppBar tooltip `'Save Project (Ctrl+S)'` at `editor_screen.dart:191`.
 - `editor_screen.dart:353-379` → builds `SvgExporter.export(document)` and opens a **Save-SVG** dialog.
 
 The wiring is `ShortcutHandler` (line 345) wrapping `Focus` (line 347); both are `autofocus`, and the **inner** `Focus` is closer to the primary focus, so it handles the key first and returns `handled` — the outer `onSave` never fires. Ctrl+Z is bound in both places too. **Net effect: the keyboard "save" is not the save the UI advertises.** Fix: one shortcut registry, one `Focus`, no duplicated bindings.
 
-### P0-4 · Everything inside `<defs>` is dropped on import — masks, clip paths and symbols never render
+### P0-4 · Everything inside `<defs>` is dropped on import — masks, clip paths and symbols never render  — **FIXED** in `c7c46cd` + `843a241`
+
+*(Diagnosis preserved below; the measured-before figures are the baseline the fix was verified against. Fix: `VxDocument.defs` registry, three-pass import, definition-first resolution in painter/hit-test/PDF/SVG export, and a luminance→alpha mask renderer — the previous renderer applied alpha masking, so a black shape inside a mask hid nothing even once it resolved.)*
 `svg_importer.dart:44-56`: children of `<defs>` are copied into a **static map `_defs`** and never inserted into the document element tree. `_defs` is only consulted for gradient fills (`svg_importer.dart:378`).
 
 Meanwhile `ScenePainter._resolveReference(id)` and `HitTester._findElementById` search **only `document.elements`**. So for any real-world SVG:
@@ -184,7 +203,9 @@ The exporter, by contrast, writes the real geometry (`svg_exporter.dart._writeFi
 
 ## 5. P1 — correctness & data loss
 
-### P1-1 · `matrix(...)` transform import is transposed
+### P1-1 · `matrix(...)` transform import is transposed  — **FIXED** in `3e94022`
+
+*(Kept for reference: `Matrix4`'s unnamed constructor takes row-major arguments while SVG `matrix(a,b,c,d,e,f)` is column-major. Now built via `setEntry`.)*
 `svg_importer.dart._parseTransform`, `case 'matrix'`:
 ```dart
 final m = Matrix4(parts[0], parts[1], 0, 0,  parts[2], parts[3], 0, 0, ...);
