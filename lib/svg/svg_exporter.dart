@@ -268,7 +268,11 @@ class SvgExporter {
         },
       ),
       path: (e) => b.element(
-        'path',
+        // A straight two-point path has to be <line>: writing it as <path> with
+        // x1/y1/x2/y2 produces an element with no `d`, which is invalid SVG and
+        // renders as nothing. Every straight line in an exported drawing used to
+        // vanish (caught by the corpus).
+        _isSimpleLine(e.segments) ? 'line' : 'path',
         attributes: {
           if (_isSimpleLine(e.segments)) ...{
             'id': e.id,
