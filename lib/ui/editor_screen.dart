@@ -334,7 +334,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               ),
               const PopupMenuItem(
                 value: 'export_svg',
-                child: Text('Export SVG'),
+                child: Text('Export SVG (active artboard)'),
               ),
             ],
           ),

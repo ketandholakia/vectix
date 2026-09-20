@@ -25,10 +25,12 @@ class HitTester {
   }
 
   static bool _belongsToActiveArtboard(VxElement element, VxDocument doc) {
-    if (doc.artboards.isEmpty) return true;
-    final index = doc.activePageIndex.clamp(0, doc.artboards.length - 1);
-    final activeId = doc.artboards[index].id;
-    return element.artboardId == null || element.artboardId == activeId;
+    // Shared rule — see SceneIndex.belongsToArtboard.
+    return SceneIndex.belongsToArtboard(
+      element,
+      doc,
+      SceneIndex.activeArtboard(doc)?.id,
+    );
   }
 
   static Offset _toLocalPoint(Offset point, Matrix4 transform) {

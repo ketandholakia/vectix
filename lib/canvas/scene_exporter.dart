@@ -18,6 +18,7 @@ import '../models/vx_document.dart';
 import '../models/vx_element.dart';
 import '../state/editor_state.dart';
 import 'gradient_geometry.dart';
+import 'scene_index.dart';
 import 'scene_painter.dart';
 
 class SceneExporter {
@@ -218,7 +219,7 @@ class SceneExporter {
     double bleed = 0,
     String? artboardId,
   }) {
-    if (!_belongsToArtboard(element, artboardId)) return;
+    if (!_belongsToArtboard(element, document, artboardId)) return;
     final maskTarget = element.maskId == null
         ? null
         : _resolve(document, element.maskId!);
@@ -269,7 +270,7 @@ class SceneExporter {
     double bleed = 0,
     String? artboardId,
   }) {
-    if (!_belongsToArtboard(element, artboardId)) return;
+    if (!_belongsToArtboard(element, document, artboardId)) return;
     element.whenOrNull(
       rect:
           (
@@ -676,7 +677,7 @@ class SceneExporter {
     double pageHeight, {
     String? artboardId,
   }) {
-    if (!_belongsToArtboard(element, artboardId)) return;
+    if (!_belongsToArtboard(element, document, artboardId)) return;
     element.whenOrNull(
       rect:
           (
@@ -1151,20 +1152,13 @@ class SceneExporter {
     );
   }
 
-  static bool _belongsToActiveArtboard(VxElement element, VxDocument document) {
-    if (document.artboards.isEmpty) return true;
-    final index = document.activePageIndex.clamp(
-      0,
-      document.artboards.length - 1,
-    );
-    final activeId = document.artboards[index].id;
-    return element.artboardId == null || element.artboardId == activeId;
-  }
-
-  static bool _belongsToArtboard(VxElement element, String? artboardId) {
-    if (artboardId == null) return true;
-    return element.artboardId == null || element.artboardId == artboardId;
-  }
+  /// Delegates to the shared artboard rule (SceneIndex) so the canvas, PNG, PDF
+  /// and SVG export paths cannot drift apart again.
+  static bool _belongsToArtboard(
+    VxElement element,
+    VxDocument document,
+    String? artboardId,
+  ) => SceneIndex.belongsToArtboard(element, document, artboardId);
 
   static void _drawCropMarks(
     PdfGraphics g,

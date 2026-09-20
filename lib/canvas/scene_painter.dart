@@ -27,16 +27,6 @@ class ScenePainter extends CustomPainter {
     canvas.restore();
   }
 
-  bool _belongsToActiveArtboard(VxElement element, VxDocument document) {
-    if (document.artboards.isEmpty) return true;
-    final index = document.activePageIndex.clamp(
-      0,
-      document.artboards.length - 1,
-    );
-    final activeId = document.artboards[index].id;
-    return element.artboardId == null || element.artboardId == activeId;
-  }
-
   void _paintElement(Canvas canvas, VxElement element) {
     if (!element.visible) return;
 

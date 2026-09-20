@@ -1,19 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:xml/xml.dart';
 import 'package:vector_math/vector_math_64.dart';
+import '../canvas/scene_index.dart';
 import '../models/vx_document.dart';
 import '../models/vx_element.dart';
 
 class SvgExporter {
-  static String export(VxDocument doc) {
+  /// Serialises [doc] to SVG.
+  ///
+  /// Only the artwork of one artboard is written — [artboardId] if given,
+  /// otherwise the document's active artboard — matching what the canvas shows
+  /// and what PNG/PDF export produce. The `viewBox` is that artboard's size.
+  ///
+  /// Definitions (`<defs>`: masks, clip paths, symbols) are document-wide and
+  /// are always written: they are not painted, only referenced, and a symbol can
+  /// legitimately be used by several artboards.
+  static String export(VxDocument doc, {String? artboardId}) {
     final builder = XmlBuilder();
     builder.processing('xml', 'version="1.0" encoding="UTF-8"');
-    final activeArtboard =
-        doc.artboards.isNotEmpty && doc.activePageIndex < doc.artboards.length
-        ? doc.artboards[doc.activePageIndex]
-        : null;
-    final width = activeArtboard?.width ?? doc.width;
-    final height = activeArtboard?.height ?? doc.height;
+
+    final targetArtboard = artboardId == null
+        ? SceneIndex.activeArtboard(doc)
+        : doc.artboards
+              .where((artboard) => artboard.id == artboardId)
+              .firstOrNull;
+    final width = targetArtboard?.width ?? doc.width;
+    final height = targetArtboard?.height ?? doc.height;
+    final elements = SceneIndex.elementsForArtboard(doc, targetArtboard?.id);
 
     builder.element(
       'svg',
@@ -41,12 +54,12 @@ class SvgExporter {
               );
             }
             // 2. Gradient definitions, derived from the elements that use them.
-            for (final el in doc.elements) {
+            for (final el in elements) {
               _writeDefsForElement(builder, el, writtenDefIds);
             }
             // 3. Legacy fallback for references that point at ordinary
             //    artwork (documents saved before definitions were modelled).
-            for (final el in doc.elements) {
+            for (final el in elements) {
               _writeReferencedDef(
                 builder,
                 doc,
@@ -65,8 +78,8 @@ class SvgExporter {
           },
         );
 
-        // Write elements
-        for (final el in doc.elements) {
+        // Write the elements of the target artboard.
+        for (final el in elements) {
           _writeElement(builder, el);
         }
       },
