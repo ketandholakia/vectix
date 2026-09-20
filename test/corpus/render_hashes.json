@@ -1,0 +1,110 @@
+{
+  "clip_path_multi": {
+    "pixelHash": "2b7f4b39bc415a51",
+    "roundTripFidelity": 1.0
+  },
+  "clip_path_single": {
+    "pixelHash": "5eff1803a5a53f7f",
+    "roundTripFidelity": 1.0
+  },
+  "colors_functions": {
+    "pixelHash": "b88a81c7b5a5a235",
+    "roundTripFidelity": 1.0
+  },
+  "colors_hex_forms": {
+    "pixelHash": "fcb2d46b5091a4c5",
+    "roundTripFidelity": 1.0
+  },
+  "defs_only": {
+    "pixelHash": "5d221d5070447725",
+    "roundTripFidelity": 1.0
+  },
+  "empty_group": {
+    "pixelHash": "b8cc7725f944c3e5",
+    "roundTripFidelity": 1.0
+  },
+  "gradient_linear_horizontal": {
+    "pixelHash": "9c53ea36d8401735",
+    "roundTripFidelity": 1.0
+  },
+  "gradient_linear_percent": {
+    "pixelHash": "6a106d2136a0379d",
+    "roundTripFidelity": 1.0
+  },
+  "gradient_linear_userspace": {
+    "pixelHash": "fa8b34a3e40448ed",
+    "roundTripFidelity": 1.0
+  },
+  "gradient_linear_vertical": {
+    "pixelHash": "8f99f56db613b525",
+    "roundTripFidelity": 1.0
+  },
+  "gradient_on_group": {
+    "pixelHash": "43fc7982f1f2f485",
+    "roundTripFidelity": 1.0
+  },
+  "gradient_radial": {
+    "pixelHash": "e3e7fc94c014c26f",
+    "roundTripFidelity": 1.0
+  },
+  "gradient_stop_opacity": {
+    "pixelHash": "27e8e513f0279791",
+    "roundTripFidelity": 1.0
+  },
+  "group_inheritance": {
+    "pixelHash": "466a2bc605e4e46e",
+    "roundTripFidelity": 1.0
+  },
+  "icon_set": {
+    "pixelHash": "130a9561ae398713",
+    "roundTripFidelity": 1.0
+  },
+  "mask_luminance": {
+    "pixelHash": "54b6753631d4141f",
+    "roundTripFidelity": 1.0
+  },
+  "nested_deep": {
+    "pixelHash": "c16aa2b5c6a852b5",
+    "roundTripFidelity": 1.0
+  },
+  "path_curves": {
+    "pixelHash": "6f36c34880277bf6",
+    "roundTripFidelity": 1.0
+  },
+  "rounded_rect": {
+    "pixelHash": "383d0d707b0e4375",
+    "roundTripFidelity": 1.0
+  },
+  "shapes_basic": {
+    "pixelHash": "6803de6bdc4eb721",
+    "roundTripFidelity": 1.0
+  },
+  "stroke_features": {
+    "pixelHash": "6a49df6e53c4463c",
+    "roundTripFidelity": 1.0
+  },
+  "style_attribute": {
+    "pixelHash": "0ebc17724c71e77d",
+    "roundTripFidelity": 1.0
+  },
+  "symbol_and_use": {
+    "pixelHash": "bb13870f9c0540d8",
+    "roundTripFidelity": 1.0
+  },
+  "transform_matrix": {
+    "pixelHash": "88b79ed9a2de1f97",
+    "roundTripFidelity": 1.0
+  },
+  "transform_nested": {
+    "pixelHash": "d851e9c2bad9780e",
+    "roundTripFidelity": 1.0
+  },
+  "transform_rotate": {
+    "pixelHash": "ca31ca51620a321c",
+    "roundTripFidelity": 1.0
+  },
+  "transform_translate_scale": {
+    "pixelHash": "cfefe4aa52d33825",
+    "roundTripFidelity": 1.0
+  }
+}
