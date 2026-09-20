@@ -27,9 +27,11 @@
 | `eacc6fa` | **P0-3** one owner per shortcut; Ctrl+S now saves the project | analyzer: 508 → 503 issues; single binding |
 | `c7c46cd` | **P0-4** document definition registry; masks/clip-paths/symbols resolve; mask renderer switched to luminance→alpha | `test/mask_defs_regression_test.dart` (pixel assertions + pixel-identical round trip) |
 | `843a241` | Regression tests enabled; masked golden regenerated (the old one encoded the unmasked render) | `flutter test`: **22 passed, 0 skipped** |
+| `67db295` | Repo published publicly, app-only history (workspace files rewritten out) | remote refs = `refs/heads/master` only; CI green ×2 |
+| _this batch_ | **P1-2 / P1-3 / P1-4** SVG defaults, presentation inheritance, colour grammar, rounded rects, stroke caps/joins/opacity/miter-limit, alpha-preserving export; painter now applies the text properties it was ignoring (**P1-5**, partial) | `test/svg_style_test.dart` (25 tests); `flutter test`: **47 passed** |
 
-Still open from Phase A: CI (A3, needs a remote), lint ratchet (A4), real README (A5).
-Still open from Phase B: B2 (default fill + presentation inheritance), B3 (colour grammar, rounded rects, stroke caps/joins/opacity, alpha), B4 (gradient geometry), B5 (artboard-aware SVG export), B6 (fidelity corpus).
+Still open from Phase A: lint ratchet (A4).
+Still open from Phase B: B4 (gradient geometry on canvas), B5 (artboard-aware SVG export), B6 (fidelity corpus — now the highest-value remaining item, since every fidelity claim in this project has so far turned out to be optimistic).
 
 **A new finding surfaced while fixing P0-4** — the mask renderer drew the mask geometry with `BlendMode.dstIn` and a white paint, i.e. *alpha* masking. The mask's colours were ignored, so a black shape inside a mask hid nothing even after the reference resolved. Real SVG `<mask>` is luminance-based. Fixed alongside the registry (`c7c46cd`); this is why the defect was invisible in code review and only appeared under pixel testing — reinforce B6 (corpus + render hashes) before trusting any other fidelity claim.
 
@@ -214,25 +216,33 @@ final m = Matrix4(parts[0], parts[1], 0, 0,  parts[2], parts[3], 0, 0, ...);
 `Matrix4`'s constructor takes **row-major** arguments, so this sets `m01 = b`, `m10 = c`. SVG defines `matrix(a,b,c,d,e,f)` as `x' = a·x + c·y + e`, i.e. `m10 = b`, `m01 = c`. The two are transposed. `matrix()` is what Illustrator/Figma/Inkscape emit for rotated or skewed objects, so **rotated SVG artwork imports mirrored/sheared**. (The exporter's `_matrixToSvg` reads `storage[0],[1],[4],[5],[12],[13]` — that one is correct, so the bug is import-only.)
 Fix: `Matrix4.identity()..setEntry(0,0,a)..setEntry(1,0,b)..setEntry(0,1,c)..setEntry(1,1,d)..setEntry(0,3,e)..setEntry(1,3,f)`.
 
-### P1-2 · Wrong default fill, no presentation inheritance
+### P1-2 · Wrong default fill, no presentation inheritance  — **FIXED** in the B2 batch
+
+*(Diagnosis preserved. `SvgImporter` now walks the tree with an inheritable `_SvgStyle` context, so `fill`/`stroke`/`stroke-*`/`fill-opacity`/`font-*`/`text-anchor`/`letter-spacing`/`color` inherit down `<g>` and from `<svg>`, the initial fill is black per spec, and `rx`/`ry` import as an equivalent rounded path. Still not imported: `<image>`, `<style>`/CSS classes, `<tspan>`, `fill-rule`, `pattern`, `filter`, `marker`.)*
 - `_parseFill(null)` returns `VxFill.none()`. Per SVG the initial `fill` is **black**, so `<path d="…"/>` with no fill attribute imports **invisible**.
 - Presentation attributes are read per-element only (`_parseStyleAttributes`) — there is **no inheritance from ancestor `<g>`**. A `<g fill="red" stroke="black">` with plain children imports as `fill: none` children: the artwork disappears.
 - `<rect rx/ry>` (rounded corners) is parsed but `rx`/`ry` are ignored → **rounded rectangles lose their corners**.
 - Not imported at all: `<polygon>`, `<polyline>`, `<style>`/CSS classes, `<tspan>`, `<image>`, `<svg>` nesting, `marker`, `pattern`, `filter`, `fill-rule`/`clip-rule`, `stop-opacity`, `text-anchor` (collected then ignored).
 Fix order: inheritance + default fill first (they cause silent invisible geometry), then rounded rect, then polygon/polyline, then `fill-rule`.
 
-### P1-3 · Color parsing is not colour parsing
+### P1-3 · Color parsing is not colour parsing  — **FIXED** in the B2 batch
+
+*(Now handles `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa` — with the byte order corrected — `rgb()`/`rgba()` with numbers or percentages, modern space/slash syntax, `hsl()`/`hsla()`, `transparent`, `currentColor` and the full CSS named-colour table. 25 tests cover the grammar.)*
 `svg_importer.dart._parseColor` supports 6-digit hex plus exactly five names (`black/white/red/green/blue`).
 Broken/missing: `#RGB` works, `#RGBA` fails, `#RRGGBBAA` is parsed by `Color(int)` as if it were `#AARRGGBB` → **wrong colour and wrong alpha**; `rgb()/rgba()/hsl()`, `transparent`, `currentColor`, `inherit`, and the other ~140 CSS names all return `null` → silently become black or transparent depending on the call site.
 Fix: use a proper SVG colour parser (`package:csslib` or a small dedicated parser) and unit-test the full grammar.
 
-### P1-4 · Export loses alpha, caps, joins and stroke opacity
+### P1-4 · Export loses alpha, caps, joins and stroke opacity  — **FIXED** in the B3 batch
+
+*(Colour alpha now round-trips as `fill-opacity`/`stroke-opacity` over 6-digit hex; `stroke-linecap`, `stroke-linejoin` and `stroke-miterlimit` are imported and exported; `stroke-opacity` is applied by the painter, which also now honours `strokeMiterLimit`. `VxStroke.miterLimit`'s default moved from 1.0 to 4.0 (SVG/Skia default) — documents saved before this change keep 1.0, which would bevel off sharp miters; only relevant to pre-existing `.vxp` files. `VxStroke.opacity` is now applied and then folded into the colour on import, so it is effectively deprecated.)*
 - `svg_exporter.dart._colorToHex` writes `#rrggbb` and returns `'none'` when `alpha == 0` → **semi-transparent colours are exported fully opaque** (only fully transparent is handled).
 - `VxStroke.opacity` and `VxStroke.miterLimit` exist in the model but are **never read anywhere** (`_applyStroke` in `scene_painter.dart` ignores them; the exporter never writes `stroke-opacity`). Dead model fields.
 - `stroke-linecap` / `stroke-linejoin` are neither imported (`stroke-linecap` isn't even in the `presentationAttrs` list) nor exported, although the model carries `cap`/`join` and the canvas honours them. **Round-trip loses caps and joins.**
 - Layers panel `strokeCap`/`strokeJoin` are hardcoded `butt`/`miter` on import, so every imported stroke is squared off.
 
-### P1-5 · Text: 6 inspector controls do nothing visually
+### P1-5 · Text: 6 inspector controls do nothing visually  — **PARTIALLY FIXED** in the B3 batch
+
+*(The painter now builds its `TextStyle` from `fontWeightValue`, `fontStyle`, `letterSpacing`, `wordSpacing` and `lineHeight`, and passes `textAlign`/`maxLines`; the importer populates all of them (including inherited `font-weight`/`font-style`/`text-anchor`) and the exporter writes them. **Still open:** wrapping needs a text-box width the model does not have, SVG `x,y` is a baseline while Flutter paints from the top-left, so vertical position still drifts across a round trip, and `<tspan>` is not parsed.)*
 `VxText` carries `letterSpacing`, `wordSpacing`, `lineHeight`, `fontWeightValue`, `fontStyle`, `maxLines`, `align`, and `text_properties_section.dart` edits all of them through `UpdateElementCommand`. But:
 - `scene_painter.dart` paints text with `TextSpan(text: content, style: style)` only → **the six extra fields are ignored on canvas**, so the user moves sliders/fields and sees nothing change.
 - `svg_exporter.dart` writes only `id/x/y/fill/font-size/font-family` → weight, style, spacing and line height are lost on export.
