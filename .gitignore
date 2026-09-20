@@ -43,3 +43,19 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# OpenClaw agent workspace and local scratch.
+# These live in this directory because it doubles as the agent workspace, but
+# they are not part of the app and must never be published:
+# USER.md carries personal details and .openclaw/ holds live agent state.
+/AGENTS.md
+/SOUL.md
+/USER.md
+/IDENTITY.md
+/HEARTBEAT.md
+/TOOLS.md
+/.openclaw/
+/.agents/
+/scratch_recovery.txt
+/test_serialize*.dart
+/fix*.py
