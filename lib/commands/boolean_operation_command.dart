@@ -4,11 +4,15 @@ import 'package:vector_math/vector_math_64.dart';
 import '../models/vx_element.dart';
 import '../state/editor_notifier.dart';
 import 'command.dart';
+import 'element_splice.dart';
 
 class BooleanOperationCommand implements Command {
   final List<VxElement> oldElements;
   final int operation; // 0: difference, 1: intersect, 2: union, 3: xor
   late VxCompound newElement;
+
+  List<int> _sourceIndices = const [];
+  int _compoundIndex = 0;
 
   BooleanOperationCommand({
     required this.oldElements,
@@ -16,10 +20,10 @@ class BooleanOperationCommand implements Command {
   }) {
     // Keep the fill and stroke of the first element (or bottom-most element)
     final baseElement = oldElements.first;
-    
+
     VxFill baseFill = const VxFill.solid(color: Color(0xFFCCCCCC));
     VxStroke baseStroke = const VxStroke(color: Color(0xFF000000), width: 1.0, cap: StrokeCap.butt, join: StrokeJoin.miter);
-    
+
     baseElement.mapOrNull(
       rect: (e) { baseFill = e.fill; baseStroke = e.stroke; },
       ellipse: (e) { baseFill = e.fill; baseStroke = e.stroke; },
@@ -39,19 +43,31 @@ class BooleanOperationCommand implements Command {
 
   @override
   void execute(EditorNotifier editor) {
-    for (final el in oldElements) {
-      editor.removeElement(el.id);
-    }
-    editor.addElement(newElement);
+    final elements = editor.state.document.elements;
+    _sourceIndices = indicesOf(elements, oldElements.map((e) => e.id));
+    _compoundIndex = containerInsertIndex(_sourceIndices, elements);
+    editor.replaceElements(
+      spliceElements(
+        elements,
+        removedIds: oldElements.map((e) => e.id).toSet(),
+        index: _compoundIndex,
+        inserted: [newElement],
+      ),
+    );
     editor.setSelection({newElement.id});
   }
 
   @override
   void undo(EditorNotifier editor) {
-    editor.removeElement(newElement.id);
-    for (final el in oldElements) {
-      editor.addElement(el);
-    }
+    // The operands come back at their original z-positions, not on top.
+    final restored = reinsertElements(
+      withoutIds(editor.state.document.elements, {newElement.id}),
+      [
+        for (var i = 0; i < oldElements.length; i++)
+          MapEntry(_sourceIndices[i], oldElements[i]),
+      ],
+    );
+    editor.replaceElements(restored);
     editor.setSelection(oldElements.map((e) => e.id).toSet());
   }
 
@@ -66,4 +82,3 @@ class BooleanOperationCommand implements Command {
     }
   }
 }
-
