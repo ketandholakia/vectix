@@ -342,24 +342,21 @@ class SvgImporter {
           break;
         case 'matrix':
           if (parts.length >= 6) {
-            final m = Matrix4(
-              parts[0],
-              parts[1],
-              0,
-              0,
-              parts[2],
-              parts[3],
-              0,
-              0,
-              0,
-              0,
-              1,
-              0,
-              parts[4],
-              parts[5],
-              0,
-              1,
-            );
+            // SVG matrix(a,b,c,d,e,f) is a column-major 2D affine:
+            //   | a  c  e |
+            //   | b  d  f |
+            // Matrix4's unnamed constructor takes ROW-major arguments, so the
+            // off-diagonal entries must be swapped relative to the SVG
+            // component order (b maps to m10, c maps to m01). Passing
+            // (a, b, c, d, e, f) straight through transposes the matrix and
+            // mirrors every rotated/skewed artwork (finding P1-1).
+            final m = Matrix4.identity()
+              ..setEntry(0, 0, parts[0])
+              ..setEntry(1, 0, parts[1])
+              ..setEntry(0, 1, parts[2])
+              ..setEntry(1, 1, parts[3])
+              ..setEntry(0, 3, parts[4])
+              ..setEntry(1, 3, parts[5]);
             result.multiply(m);
           }
           break;
