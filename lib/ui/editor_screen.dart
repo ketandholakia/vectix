@@ -22,6 +22,7 @@ import '../commands/delete_element_command.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -47,12 +48,42 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   bool _isPanelPinned = false;
   static const _presetStoreFile = 'export_presets.json';
 
+  AppLifecycleListener? _lifecycle;
+
   @override
   void initState() {
     super.initState();
+    _lifecycle = AppLifecycleListener(onExitRequested: _onExitRequested);
     // A recovery snapshot on disk means the previous session ended with unsaved
     // work (finding P1-12).
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkForRecovery());
+  }
+
+  @override
+  void dispose() {
+    _lifecycle?.dispose();
+    super.dispose();
+  }
+
+  /// Asks before the window closes with unsaved changes.
+  ///
+  /// Deliberately fail-open: anything unexpected (no context, a thrown error)
+  /// lets the app exit, because being unable to close the editor is a worse
+  /// failure than the prompt not appearing. Autosave already bounds what is at
+  /// risk to a few seconds, and the snapshot is offered on the next launch.
+  Future<ui.AppExitResponse> _onExitRequested() async {
+    try {
+      if (!mounted) return ui.AppExitResponse.exit;
+      if (!ref.read(projectSessionProvider).dirty) return ui.AppExitResponse.exit;
+      final proceed = await _confirmDestructive(
+        ref,
+        context,
+        'Closing the editor',
+      );
+      return proceed ? ui.AppExitResponse.exit : ui.AppExitResponse.cancel;
+    } catch (_) {
+      return ui.AppExitResponse.exit;
+    }
   }
 
   @override
