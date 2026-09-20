@@ -32,7 +32,7 @@
 | _this batch_ | **P0-5** gradient geometry: `gradientUnits` modelled, canvas and PDF both render the authored direction, SVG export writes the real units | `test/gradient_geometry_test.dart` (14 tests incl. pixel direction); `flutter test`: **61 passed** |
 | _this batch_ | **B6** fidelity corpus (27 SVG files, committed render hashes + a 100 % round-trip fidelity floor) — which immediately found and drove the fix for **P0-6** | corpus on first run: 4 files below floor → 27/27 at 100 % after the fix; `flutter test`: **64 passed** |
 | _this batch_ | **B5** artboard scoping centralised in `SceneIndex`; SVG export now writes only the target artboard | `test/svg_artboard_test.dart` (9 tests incl. canvas-vs-export pixel equality); `flutter test`: **73 passed** |
-| _this batch_ | **C1** every document-level edit is now undoable; text creation and text editing fixed; four dead mutators removed — and the new undo-fidelity test immediately found **P1-13** (undoing a group reordered layers) | `test/editor_history_test.dart` + `test/element_splice_test.dart`; `flutter test`: **85 passed** |
+| _this batch_ | **C1** every document-level edit is now undoable; text creation and text editing fixed; four dead mutators removed; commands read through public accessors instead of Riverpod's protected `state` — and the new undo-fidelity test immediately found **P1-13** (undoing a group reordered layers) | `test/editor_history_test.dart` + `test/element_splice_test.dart`; `flutter test`: **85 passed**; analyzer **505 → 466** |
 
 **Phase B is complete.** What is left:
 
