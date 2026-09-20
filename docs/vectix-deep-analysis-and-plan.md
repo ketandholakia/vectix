@@ -31,11 +31,15 @@
 | _this batch_ | **P1-2 / P1-3 / P1-4** SVG defaults, presentation inheritance, colour grammar, rounded rects, stroke caps/joins/opacity/miter-limit, alpha-preserving export; painter now applies the text properties it was ignoring (**P1-5**, partial) | `test/svg_style_test.dart` (25 tests); `flutter test`: **47 passed** |
 | _this batch_ | **P0-5** gradient geometry: `gradientUnits` modelled, canvas and PDF both render the authored direction, SVG export writes the real units | `test/gradient_geometry_test.dart` (14 tests incl. pixel direction); `flutter test`: **61 passed** |
 | _this batch_ | **B6** fidelity corpus (27 SVG files, committed render hashes + a 100 % round-trip fidelity floor) — which immediately found and drove the fix for **P0-6** | corpus on first run: 4 files below floor → 27/27 at 100 % after the fix; `flutter test`: **64 passed** |
+| _this batch_ | **B5** artboard scoping centralised in `SceneIndex`; SVG export now writes only the target artboard | `test/svg_artboard_test.dart` (9 tests incl. canvas-vs-export pixel equality); `flutter test`: **73 passed** |
 
-Still open from Phase A: lint ratchet (A4).
-Still open from Phase B: B5 (artboard-aware SVG export).
+**Phase B is complete.** What is left:
 
-The corpus is now the safety net for every remaining fidelity claim. Its first run paid for itself within minutes: it found a bug that made every straight line disappear from exported SVG files, which four batches of review and testing had missed.
+- **A4** — lint ratchet, so CI can fail on warnings and not just errors.
+- **Phase C** — editing integrity: commands as the only mutation path (undo currently misses text creation, lock/hide, artboards, document size), preview/commit/cancel, geometry-based snapping, group enter/select, safe IO with autosave, opacity control.
+- **Phase D** — performance: revision-keyed cache invalidation, batched preview writes, cheap repaint decisions, hoisted painter caches, frame budgets in CI.
+- **Phase E** — replace the ~16 hand-written positional tree traversals with pattern matching and shared extensions, then the analyzer can reach zero warnings.
+- **Phase F** — feature expansion (SVG breadth, text depth, symbol library, batch export).
 
 **A new finding surfaced while fixing P0-4** — the mask renderer drew the mask geometry with `BlendMode.dstIn` and a white paint, i.e. *alpha* masking. The mask's colours were ignored, so a black shape inside a mask hid nothing even after the reference resolved. Real SVG `<mask>` is luminance-based. Fixed alongside the registry (`c7c46cd`); this is why the defect was invisible in code review and only appeared under pixel testing — reinforce B6 (corpus + render hashes) before trusting any other fidelity claim.
 
@@ -295,7 +299,9 @@ Fix: snap the candidate rect (element bounds offset by delta) against targets, s
 ### P1-8 · Mask/clip source elements are drawn visibly
 A mask source is stored as an ordinary element in `document.elements` **and** referenced by `maskId`. `ScenePainter` paints every active element, so the mask source is visible artwork; `SvgExporter._writeReferencedDef` additionally duplicates it inside `<defs><mask>`, producing an SVG that contains it twice. Fix: mark mask/clip sources (`role: defs` flag or a `defs` collection) and exclude them from both the canvas paint loop and the main export loop.
 
-### P1-9 · SVG export ignores artboards; PNG/PDF do not
+### P1-9 · SVG export ignores artboards; PNG/PDF do not  — **FIXED** in the B5 batch
+
+*(Diagnosis preserved. The artboard rule now lives in one place — `SceneIndex.belongsToArtboard` / `elementsForArtboard` / `activeArtboard` — and the canvas, PNG, PDF and SVG paths all consult it, replacing three separate copies (two of them dead code). `SvgExporter.export` takes an optional `artboardId` and defaults to the active artboard, and its `viewBox` is that artboard's size. Definitions in `<defs>` stay document-wide, since they are referenced rather than painted. **Remaining nuance:** Vectix does not clip artwork to the artboard, so an element poking outside is exported but will be cropped by an SVG consumer's viewport — a difference from the editor, not a bug. Batch export (one file per artboard) is still Phase F.)*
 `SvgExporter.export` loops over **all** `doc.elements` and uses the active artboard's size as `viewBox`. PNG (`SceneExporter.renderPng`) and PDF (`_selectedArtboards`) both filter by artboard. So exporting SVG from a multi-artboard document produces one flat file with **every artboard's artwork overlapping in a single viewBox**. Also `VxArtboard.x/y` is **never read anywhere in `lib/`**, so artboards cannot be laid out on the canvas at all — "multi-artboard" is currently "one artboard at a time, always at the origin".
 
 ### P1-10 · New elements get inconsistent `artboardId`
