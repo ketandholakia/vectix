@@ -32,11 +32,12 @@
 | _this batch_ | **P0-5** gradient geometry: `gradientUnits` modelled, canvas and PDF both render the authored direction, SVG export writes the real units | `test/gradient_geometry_test.dart` (14 tests incl. pixel direction); `flutter test`: **61 passed** |
 | _this batch_ | **B6** fidelity corpus (27 SVG files, committed render hashes + a 100 % round-trip fidelity floor) — which immediately found and drove the fix for **P0-6** | corpus on first run: 4 files below floor → 27/27 at 100 % after the fix; `flutter test`: **64 passed** |
 | _this batch_ | **B5** artboard scoping centralised in `SceneIndex`; SVG export now writes only the target artboard | `test/svg_artboard_test.dart` (9 tests incl. canvas-vs-export pixel equality); `flutter test`: **73 passed** |
+| _this batch_ | **C1** every document-level edit is now undoable; text creation and text editing fixed; four dead mutators removed — and the new undo-fidelity test immediately found **P1-13** (undoing a group reordered layers) | `test/editor_history_test.dart` + `test/element_splice_test.dart`; `flutter test`: **85 passed** |
 
 **Phase B is complete.** What is left:
 
 - **A4** — lint ratchet, so CI can fail on warnings and not just errors.
-- **Phase C** — editing integrity: commands as the only mutation path (undo currently misses text creation, lock/hide, artboards, document size), preview/commit/cancel, geometry-based snapping, group enter/select, safe IO with autosave, opacity control.
+- **Phase C (in progress)** — C1 done. Remaining: C2 preview/commit/cancel so a drag never writes into the document, C3 geometry-based snapping, C4 group enter/select + layers tree + rename, C5 safe IO (unsaved-changes guard, autosave, crash recovery), C6 inspector completion (opacity, numeric transform for all types, gradient stop editing).
 - **Phase D** — performance: revision-keyed cache invalidation, batched preview writes, cheap repaint decisions, hoisted painter caches, frame budgets in CI.
 - **Phase E** — replace the ~16 hand-written positional tree traversals with pattern matching and shared extensions, then the analyzer can reach zero warnings.
 - **Phase F** — feature expansion (SVG breadth, text depth, symbol library, batch export).
@@ -274,7 +275,19 @@ Fix: use a proper SVG colour parser (`package:csslib` or a small dedicated parse
 - `svg_importer.dart` reads `font-size`/`font-family`/fill only, ignores `text-anchor`/`font-weight`/`font-style`/`tspan`, and forces `align: start`, `maxLines: 1` → **multi-line SVG text is flattened**.
 - Coordinate semantics differ: SVG `x,y` is the **baseline**, Flutter paints from the top-left. Text will drift vertically on every SVG round-trip.
 
-### P1-6 · Nine operations bypass undo
+### P1-6 · Nine operations bypass undo  — **FIXED** in the C1 batch
+
+*(Diagnosis preserved. All of them now go through the command stack: text creation uses `AddElementCommand`; lock/hide, artboard add/duplicate/rename/move/remove, document size and metadata use `recordDocumentEdit`, which records a before/after document snapshot as one step and records nothing when an operation changes nothing. Four dead public mutators on `EditorNotifier` (`updatePathSegments`, `insertPathNode`, `deleteLastPathNode`, `replaceDocument`) were deleted. The text editor also had a related bug: its live preview had already written the new content, so the command it recorded had `old == new` and undid nothing. `test/editor_history_test.dart` now asserts, for 20 user-level operations, that each changes the document and reverses cleanly, and that undoing all 20 restores a byte-identical snapshot.)*
+
+### P1-13 · Undoing a group, ungroup or boolean reordered the layers  — **FIXED** in the C1 batch
+
+*Found by the C1 undo-fidelity test.* `GroupCommand`, `UngroupCommand` and
+`BooleanOperationCommand` restored their elements by appending them to the end of
+the list. Since element order is z-order, undoing a group therefore moved the
+artwork to the top of the stack. The ordering rule now lives in
+`lib/commands/element_splice.dart` as pure, unit-tested functions; a container
+takes the z-position of its topmost source on the way in, and the members return
+to their exact original indices on the way back.
 Verified call sites that mutate the document without `HistoryManager`:
 | Location | Operation |
 |---|---|
