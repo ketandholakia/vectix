@@ -53,7 +53,9 @@ abstract class VxStroke with _$VxStroke {
     required StrokeCap cap,
     required StrokeJoin join,
     @Default(1.0) double opacity,
-    @Default(1.0) double miterLimit,
+    // SVG's initial value (and Skia's default). The old default of 1.0 would
+    // bevel every miter join now that the painter applies the limit.
+    @Default(4.0) double miterLimit,
     List<double>? dashArray,
   }) = _VxStroke;
 

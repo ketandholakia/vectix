@@ -1530,7 +1530,7 @@ return $default(_that.color,_that.width,_that.cap,_that.join,_that.opacity,_that
 @JsonSerializable()
 
 class _VxStroke implements VxStroke {
-  const _VxStroke({@ColorConverter() required this.color, required this.width, required this.cap, required this.join, this.opacity = 1.0, this.miterLimit = 1.0, final  List<double>? dashArray}): _dashArray = dashArray;
+  const _VxStroke({@ColorConverter() required this.color, required this.width, required this.cap, required this.join, this.opacity = 1.0, this.miterLimit = 4.0, final  List<double>? dashArray}): _dashArray = dashArray;
   factory _VxStroke.fromJson(Map<String, dynamic> json) => _$VxStrokeFromJson(json);
 
 @override@ColorConverter() final  Color color;

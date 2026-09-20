@@ -179,6 +179,17 @@ class SvgExporter {
   }
 
   static void _writeFillDef(XmlBuilder b, VxFill fill, String elementId) {
+    void writeStop(ColorStop s) {
+      b.element(
+        'stop',
+        attributes: {
+          'offset': '${s.offset * 100}%',
+          'stop-color': _colorToHex(s.color),
+          if (s.color.a < 1) 'stop-opacity': _num(s.color.a),
+        },
+      );
+    }
+
     fill.whenOrNull(
       linear: (start, end, stops) {
         b.element(
@@ -193,13 +204,7 @@ class SvgExporter {
           },
           nest: () {
             for (final s in stops) {
-              b.element(
-                'stop',
-                attributes: {
-                  'offset': '${s.offset * 100}%',
-                  'stop-color': _colorToHex(s.color),
-                },
-              );
+              writeStop(s);
             }
           },
         );
@@ -216,13 +221,7 @@ class SvgExporter {
           },
           nest: () {
             for (final s in stops) {
-              b.element(
-                'stop',
-                attributes: {
-                  'offset': '${s.offset * 100}%',
-                  'stop-color': _colorToHex(s.color),
-                },
-              );
+              writeStop(s);
             }
           },
         );
@@ -240,11 +239,7 @@ class SvgExporter {
           'y': '${e.y}',
           'width': '${e.width}',
           'height': '${e.height}',
-          'fill': _getFillValue(e.fill, e.id),
-          'stroke': _colorToHex(e.stroke.color),
-          'stroke-width': '${e.stroke.width}',
-          if (e.stroke.dashArray != null && e.stroke.dashArray!.isNotEmpty)
-            'stroke-dasharray': e.stroke.dashArray!.join(' '),
+          ..._paintAttributes(e.fill, e.stroke, e.id),
           if (e.opacity != 1.0) 'opacity': '${e.opacity}',
           if (e.clipPathId != null) 'clip-path': 'url(#${e.clipPathId})',
           if (e.maskId != null) 'mask': 'url(#${e.maskId})',
@@ -259,11 +254,7 @@ class SvgExporter {
           'cy': '${e.cy}',
           'rx': '${e.rx}',
           'ry': '${e.ry}',
-          'fill': _getFillValue(e.fill, e.id),
-          'stroke': _colorToHex(e.stroke.color),
-          'stroke-width': '${e.stroke.width}',
-          if (e.stroke.dashArray != null && e.stroke.dashArray!.isNotEmpty)
-            'stroke-dasharray': e.stroke.dashArray!.join(' '),
+          ..._paintAttributes(e.fill, e.stroke, e.id),
           if (e.opacity != 1.0) 'opacity': '${e.opacity}',
           if (e.clipPathId != null) 'clip-path': 'url(#${e.clipPathId})',
           if (e.maskId != null) 'mask': 'url(#${e.maskId})',
@@ -280,10 +271,7 @@ class SvgExporter {
             'x2': '${_linePoint(e.segments, 1).dx}',
             'y2': '${_linePoint(e.segments, 1).dy}',
             'fill': 'none',
-            'stroke': _colorToHex(e.stroke.color),
-            'stroke-width': '${e.stroke.width}',
-            if (e.stroke.dashArray != null && e.stroke.dashArray!.isNotEmpty)
-              'stroke-dasharray': e.stroke.dashArray!.join(' '),
+            ..._paintAttributes(const VxFill.none(), e.stroke, e.id),
             if (e.opacity != 1.0) 'opacity': '${e.opacity}',
             if (e.clipPathId != null) 'clip-path': 'url(#${e.clipPathId})',
             if (e.maskId != null) 'mask': 'url(#${e.maskId})',
@@ -291,11 +279,7 @@ class SvgExporter {
           } else ...{
             'id': e.id,
             'd': _segmentsToD(e.segments),
-            'fill': _getFillValue(e.fill, e.id),
-            'stroke': _colorToHex(e.stroke.color),
-            'stroke-width': '${e.stroke.width}',
-            if (e.stroke.dashArray != null && e.stroke.dashArray!.isNotEmpty)
-              'stroke-dasharray': e.stroke.dashArray!.join(' '),
+            ..._paintAttributes(e.fill, e.stroke, e.id),
             if (e.opacity != 1.0) 'opacity': '${e.opacity}',
             if (e.clipPathId != null) 'clip-path': 'url(#${e.clipPathId})',
             if (e.maskId != null) 'mask': 'url(#${e.maskId})',
@@ -309,9 +293,18 @@ class SvgExporter {
           'id': e.id,
           'x': '${e.x}',
           'y': '${e.y}',
-          'fill': e.style.color != null ? _colorToHex(e.style.color!) : 'black',
+          'fill': e.style.color != null && e.style.color!.a > 0
+              ? _colorToHex(e.style.color!)
+              : 'black',
+          if (e.style.color != null && e.style.color!.a < 1)
+            'fill-opacity': _num(e.style.color!.a),
           if (e.style.fontSize != null) 'font-size': '${e.style.fontSize}',
           if (e.style.fontFamily != null) 'font-family': '${e.style.fontFamily}',
+          if (e.fontWeightValue != null) 'font-weight': '${e.fontWeightValue}',
+          if (e.fontStyle == FontStyle.italic) 'font-style': 'italic',
+          if (e.align != TextAlign.start) 'text-anchor': _textAnchor(e.align),
+          if (e.letterSpacing != null) 'letter-spacing': '${e.letterSpacing}',
+          if (e.wordSpacing != null) 'word-spacing': '${e.wordSpacing}',
           if (e.opacity != 1.0) 'opacity': '${e.opacity}',
           if (e.clipPathId != null) 'clip-path': 'url(#${e.clipPathId})',
           if (e.maskId != null) 'mask': 'url(#${e.maskId})',
@@ -361,9 +354,92 @@ class SvgExporter {
     );
   }
 
+  /// Paint attributes shared by every shape.
+  ///
+  /// Alpha is carried by `fill-opacity` / `stroke-opacity` on top of a 6-digit
+  /// `#rrggbb` colour: the most widely supported form, and it round-trips
+  /// through SvgImporter. The previous exporter dropped alpha entirely (finding
+  /// P1-4), so semi-transparent artwork exported fully opaque.
+  static Map<String, String> _paintAttributes(
+    VxFill fill,
+    VxStroke stroke,
+    String elementId,
+  ) {
+    final attrs = <String, String>{};
+
+    final fillValue = _getFillValue(fill, elementId);
+    attrs['fill'] = fillValue;
+    final fillAlpha = _fillAlpha(fill);
+    if (fillValue != 'none' && !fillValue.startsWith('url(') && fillAlpha < 1) {
+      attrs['fill-opacity'] = _num(fillAlpha);
+    }
+
+    final strokeAlpha = stroke.color.a * stroke.opacity;
+    if (stroke.width > 0 && strokeAlpha > 0) {
+      attrs['stroke'] = _colorToHex(stroke.color);
+      attrs['stroke-width'] = _num(stroke.width);
+      if (strokeAlpha < 1) attrs['stroke-opacity'] = _num(strokeAlpha);
+      if (stroke.cap != StrokeCap.butt) {
+        attrs['stroke-linecap'] = switch (stroke.cap) {
+          StrokeCap.round => 'round',
+          StrokeCap.square => 'square',
+          StrokeCap.butt => 'butt',
+        };
+      }
+      if (stroke.join != StrokeJoin.miter) {
+        attrs['stroke-linejoin'] = switch (stroke.join) {
+          StrokeJoin.round => 'round',
+          StrokeJoin.bevel => 'bevel',
+          StrokeJoin.miter => 'miter',
+        };
+      } else if (stroke.miterLimit != _svgDefaultMiterLimit) {
+        attrs['stroke-miterlimit'] = _num(stroke.miterLimit);
+      }
+      final dash = stroke.dashArray;
+      if (dash != null && dash.isNotEmpty) {
+        attrs['stroke-dasharray'] = dash.join(' ');
+      }
+    }
+
+    return attrs;
+  }
+
+  static const double _svgDefaultMiterLimit = 4.0;
+
+  static double _fillAlpha(VxFill fill) {
+    return fill.when(
+      solid: (c) => c.a,
+      linear: (_, __, ___) => 1.0,
+      radial: (_, __, ___) => 1.0,
+      none: () => 1.0,
+    );
+  }
+
+  static String _textAnchor(TextAlign align) {
+    switch (align) {
+      case TextAlign.center:
+        return 'middle';
+      case TextAlign.end:
+      case TextAlign.right:
+        return 'end';
+      default:
+        return 'start';
+    }
+  }
+
+  /// Formats a double compactly and stably (avoids float noise like
+  /// `0.30000000000000004` in the output).
+  static String _num(double value) {
+    final rounded = (value * 1000).roundToDouble() / 1000;
+    if (rounded == rounded.roundToDouble()) {
+      return rounded.toInt().toString();
+    }
+    return rounded.toString();
+  }
+
   static String _getFillValue(VxFill fill, String elementId) {
     return fill.when(
-      solid: (color) => _colorToHex(color),
+      solid: (color) => color.a == 0 ? 'none' : _colorToHex(color),
       linear: (_, __, ___) => 'url(#fill_$elementId)',
       radial: (_, __, ___) => 'url(#fill_$elementId)',
       none: () => 'none',
@@ -371,8 +447,14 @@ class SvgExporter {
   }
 
   static String _colorToHex(Color c) {
-    if (c.alpha == 0) return 'none';
-    return '#${c.red.toRadixString(16).padLeft(2, '0')}${c.green.toRadixString(16).padLeft(2, '0')}${c.blue.toRadixString(16).padLeft(2, '0')}';
+    // Alpha is emitted separately as fill-opacity / stroke-opacity.
+    // Color.r/g/b are 0..1 doubles in the current Flutter API.
+    final r = (c.r * 255).round();
+    final g = (c.g * 255).round();
+    final b = (c.b * 255).round();
+    return '#${r.toRadixString(16).padLeft(2, '0')}'
+        '${g.toRadixString(16).padLeft(2, '0')}'
+        '${b.toRadixString(16).padLeft(2, '0')}';
   }
 
   static bool _isIdentity(Matrix4 m) => m == Matrix4.identity();

@@ -155,10 +155,19 @@ class ScenePainter extends CustomPainter {
             clipPathId,
             maskId,
           ) {
-            final textSpan = TextSpan(text: content, style: style);
+            final textSpan = TextSpan(text: content, style: _effectiveTextStyle(
+              style: style,
+              fontWeightValue: fontWeightValue,
+              fontStyle: fontStyle,
+              letterSpacing: letterSpacing,
+              wordSpacing: wordSpacing,
+              lineHeight: lineHeight,
+            ));
             final textPainter = TextPainter(
               text: textSpan,
               textDirection: TextDirection.ltr,
+              textAlign: align,
+              maxLines: maxLines > 0 ? maxLines : null,
             );
             textPainter.layout();
             textPainter.paint(canvas, Offset(x, y));
@@ -461,6 +470,36 @@ class ScenePainter extends CustomPainter {
     0.2126, 0.7152, 0.0722, 0, 0,
   ]);
 
+  /// Maps an SVG/CSS numeric font weight (100..900) onto Flutter's scale.
+  static FontWeight? fontWeightFromValue(int? value) {
+    if (value == null) return null;
+    final index = ((value / 100).round() - 1).clamp(0, 8);
+    return FontWeight.values[index];
+  }
+
+  /// Applies the model's separate text properties to the base [TextStyle].
+  ///
+  /// `VxText` carries weight, style, letter/word spacing and line height as
+  /// their own fields; the painter used to ignore all of them, so the inspector
+  /// controls changed nothing on canvas (finding P1-5). Wrapping still needs a
+  /// text-box width, which the model does not have yet.
+  static TextStyle _effectiveTextStyle({
+    required TextStyle style,
+    int? fontWeightValue,
+    FontStyle? fontStyle,
+    double? letterSpacing,
+    double? wordSpacing,
+    double? lineHeight,
+  }) {
+    return style.copyWith(
+      fontWeight: fontWeightFromValue(fontWeightValue),
+      fontStyle: fontStyle,
+      letterSpacing: letterSpacing,
+      wordSpacing: wordSpacing,
+      height: lineHeight,
+    );
+  }
+
   void _applyFill(Paint paint, VxFill fill, Rect bounds) {
     paint.style = PaintingStyle.fill;
     fill.when(
@@ -483,11 +522,16 @@ class ScenePainter extends CustomPainter {
 
   void _applyStroke(Paint paint, VxStroke stroke) {
     paint.style = PaintingStyle.stroke;
-    paint.color = stroke.color;
+    // stroke-opacity is carried on the model but was never applied, so the
+    // exporter and the canvas disagreed (finding P1-4).
+    paint.color = stroke.color.withValues(
+      alpha: stroke.color.a * stroke.opacity,
+    );
     paint.strokeWidth = stroke.width;
     paint.strokeCap = stroke.cap;
     paint.strokeJoin = stroke.join;
-    // Dash array handling would go here, maybe using path_drawing package
+    paint.strokeMiterLimit = stroke.miterLimit;
+    // Dash arrays are expanded into individual segments in _drawStrokePath.
   }
 
   void _drawStrokePath(Canvas canvas, Path path, Paint paint, VxStroke stroke) {

@@ -142,7 +142,7 @@ _VxStroke _$VxStrokeFromJson(Map<String, dynamic> json) => _VxStroke(
   cap: $enumDecode(_$StrokeCapEnumMap, json['cap']),
   join: $enumDecode(_$StrokeJoinEnumMap, json['join']),
   opacity: (json['opacity'] as num?)?.toDouble() ?? 1.0,
-  miterLimit: (json['miterLimit'] as num?)?.toDouble() ?? 1.0,
+  miterLimit: (json['miterLimit'] as num?)?.toDouble() ?? 4.0,
   dashArray: (json['dashArray'] as List<dynamic>?)
       ?.map((e) => (e as num).toDouble())
       .toList(),
