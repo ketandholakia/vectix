@@ -28,7 +28,7 @@ class _InlineTextEditorState extends ConsumerState<InlineTextEditor> {
     final element = state.document.elements.whereType<VxText>().firstWhere((e) => e.id == widget.elementId);
     _originalContent = element.content;
     _controller = TextEditingController(text: _originalContent);
-    
+
     // Auto-focus the text field
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
@@ -41,17 +41,25 @@ class _InlineTextEditorState extends ConsumerState<InlineTextEditor> {
 
   void _commitAndClose() {
     final state = ref.read(editorProvider);
-    final element = state.document.elements.whereType<VxText>().firstWhere((e) => e.id == widget.elementId);
+    final current = state.document.elements.whereType<VxText>()
+        .firstWhere((e) => e.id == widget.elementId);
     final newContent = _controller.text;
-    
+
+    // The live preview has already written newContent into the document, so the
+    // command's "old" element has to be rebuilt from the content captured when
+    // editing started. Passing the *current* element made old == new, which
+    // recorded an undo step that reversed nothing (finding P1-6).
+    final original = current.copyWith(content: _originalContent);
+
     if (newContent.trim().isEmpty) {
-      ref.read(historyProvider).execute(DeleteElementCommand([element]));
+      ref.read(historyProvider).execute(DeleteElementCommand([current]));
     } else if (newContent != _originalContent) {
-      final updated = element.copyWith(content: newContent);
-      ref.read(historyProvider).execute(TextEditCommand(
-        oldElement: element,
-        newElement: updated,
-      ));
+      ref.read(historyProvider).execute(
+        TextEditCommand(
+          oldElement: original,
+          newElement: current.copyWith(content: newContent),
+        ),
+      );
     }
     ref.read(editorProvider.notifier).cancelTextEditing();
   }
@@ -75,12 +83,12 @@ class _InlineTextEditorState extends ConsumerState<InlineTextEditor> {
     final element = state.document.elements.whereType<VxText>().firstWhere((e) => e.id == widget.elementId);
 
     // Calculate position taking into account pan, zoom, and element transform
-    // Note: for simplicity, we assume text transform is translation only in this MVP, 
+    // Note: for simplicity, we assume text transform is translation only in this MVP,
     // or we just place the text box where the origin is.
-    
+
     final transform = element.transform;
     final pos = transform.transform3(Vector3(element.x, element.y, 0));
-    
+
     final screenX = pos.x * state.viewport.zoom + state.viewport.pan.dx;
     final screenY = pos.y * state.viewport.zoom + state.viewport.pan.dy;
 
@@ -132,4 +140,3 @@ class _InlineTextEditorState extends ConsumerState<InlineTextEditor> {
     );
   }
 }
-

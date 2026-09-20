@@ -8,6 +8,7 @@ import 'alignment_section.dart';
 import 'boolean_operations_section.dart';
 import 'text_properties_section.dart';
 import '../../state/history_manager.dart';
+import '../../state/document_edit.dart';
 import '../../commands/update_element_command.dart';
 import '../../commands/insert_path_node_command.dart';
 import '../../commands/delete_path_node_command.dart';
@@ -961,7 +962,7 @@ Future<void> _showRenameSymbolDialog(
                   ? categories[newId] ?? 'Components'
                   : categoryController.text.trim();
               metadata['symbolCategories'] = categories;
-              notifier.updateDocumentMetadata(metadata);
+              ref.recordEdit('Rename symbol', () => notifier.updateDocumentMetadata(metadata));
               Navigator.pop(dialogContext);
             },
             child: const Text('Save'),
@@ -1031,9 +1032,7 @@ Future<void> _showSymbolCategoryManager(
                     state.document.metadata,
                   );
                   metadata['symbolCategories'] = updated;
-                  ref
-                      .read(editorProvider.notifier)
-                      .updateDocumentMetadata(metadata);
+                  ref.recordEdit('Update symbol categories', () => ref.read(editorProvider.notifier).updateDocumentMetadata(metadata));
                   Navigator.pop(dialogContext);
                 },
                 child: const Text('Save'),

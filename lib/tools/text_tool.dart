@@ -9,6 +9,8 @@ import 'package:vector_math/vector_math_64.dart' hide Colors;
 import '../state/editor_notifier.dart';
 import '../state/editor_state.dart';
 import '../models/vx_element.dart';
+import '../state/history_manager.dart';
+import '../commands/add_element_command.dart';
 
 class TextTool extends ChangeNotifier implements Tool {
   @override
@@ -24,7 +26,9 @@ class TextTool extends ChangeNotifier implements Tool {
       transform: Matrix4.identity(),
     );
     
-    ref.read(editorProvider.notifier).addElement(textElement);
+    // Through the command stack: text created directly used to be impossible to
+    // undo (finding P1-6).
+    ref.read(historyProvider).execute(AddElementCommand(textElement));
     ref.read(editorProvider.notifier).setSelection({textElement.id});
     ref.read(editorProvider.notifier).setTool(ActiveTool.select);
     ref.read(editorProvider.notifier).startTextEditing(textElement.id);

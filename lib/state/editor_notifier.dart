@@ -659,69 +659,22 @@ class EditorNotifier extends Notifier<EditorState> {
     replaceElements(_updateElementInList(state.document.elements, newElement));
   }
 
-  void updatePathSegments(String id, List<PathSegment> segments) {
-    final element = state.document.elements.firstWhere(
-      (e) => e.id == id,
-      orElse: () => throw StateError('Path not found'),
-    );
-    if (element is! VxPath) return;
-    updateElement(element.copyWith(segments: segments));
-  }
-
-  void insertPathNode(String id) {
-    final element = state.document.elements.firstWhere(
-      (e) => e.id == id,
-      orElse: () => throw StateError('Path not found'),
-    );
-    if (element is! VxPath || element.segments.length < 2) return;
-    final segments = List<PathSegment>.from(element.segments);
-    for (var i = 0; i < segments.length - 1; i++) {
-      final current = segments[i];
-      final next = segments[i + 1];
-      Offset? anchorA;
-      Offset? anchorB;
-      current.whenOrNull(
-        moveTo: (p) => anchorA = p,
-        lineTo: (p) => anchorA = p,
-        quadraticBezierTo: (c, p) => anchorA = p,
-        cubicBezierTo: (c1, c2, p) => anchorA = p,
-      );
-      next.whenOrNull(
-        moveTo: (p) => anchorB = p,
-        lineTo: (p) => anchorB = p,
-        quadraticBezierTo: (c, p) => anchorB = p,
-        cubicBezierTo: (c1, c2, p) => anchorB = p,
-      );
-      if (anchorA == null || anchorB == null) continue;
-      final mid = Offset(
-        (anchorA!.dx + anchorB!.dx) / 2,
-        (anchorA!.dy + anchorB!.dy) / 2,
-      );
-      segments.insert(i + 1, PathSegment.lineTo(mid));
-      updateElement(element.copyWith(segments: segments));
-      return;
-    }
-  }
-
-  void deleteLastPathNode(String id) {
-    final element = state.document.elements.firstWhere(
-      (e) => e.id == id,
-      orElse: () => throw StateError('Path not found'),
-    );
-    if (element is! VxPath || element.segments.length <= 2) return;
-    final segments = List<PathSegment>.from(element.segments);
-    segments.removeAt(segments.length - 2);
-    updateElement(element.copyWith(segments: segments));
-  }
-
   void replaceElements(List<VxElement> elements) {
     state = state.copyWith(
       document: state.document.copyWith(elements: elements),
     );
   }
 
-  void replaceDocument(VxDocument document) {
-    state = state.copyWith(document: document, selectedIds: {});
+  /// Applies a whole-document snapshot, as used by undo/redo of document-level
+  /// edits ([ReplaceDocumentCommand]). Keeps the selection, dropping only ids
+  /// that no longer exist — undoing "add artboard" should not also clear what
+  /// the user had selected.
+  void applyDocumentSnapshot(VxDocument document) {
+    final existing = document.elements.map((element) => element.id).toSet();
+    state = state.copyWith(
+      document: document,
+      selectedIds: state.selectedIds.where(existing.contains).toSet(),
+    );
   }
 
   void updateDocumentMetadata(Map<String, dynamic> metadata) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/vx_element.dart';
 import '../../state/editor_notifier.dart';
+import '../../state/document_edit.dart';
 import '../../state/history_manager.dart';
 import '../../commands/reorder_element_command.dart';
 import '../../canvas/scene_index.dart';
@@ -110,13 +111,19 @@ class LayersPanel extends ConsumerWidget {
                             IconButton(
                               icon: Icon(element.locked ? Icons.lock : Icons.lock_open, size: 16),
                               color: Colors.white54,
-                              onPressed: () => ref.read(editorProvider.notifier).updateElementFlags(element.id, locked: !element.locked),
+                              onPressed: () => ref.recordEdit(
+                                element.locked ? 'Unlock element' : 'Lock element',
+                                () => ref.read(editorProvider.notifier).updateElementFlags(element.id, locked: !element.locked),
+                              ),
                               tooltip: element.locked ? 'Unlock' : 'Lock',
                             ),
                             IconButton(
                               icon: Icon(element.visible ? Icons.visibility : Icons.visibility_off, size: 16),
                               color: Colors.white54,
-                              onPressed: () => ref.read(editorProvider.notifier).updateElementFlags(element.id, visible: !element.visible),
+                              onPressed: () => ref.recordEdit(
+                                element.visible ? 'Hide element' : 'Show element',
+                                () => ref.read(editorProvider.notifier).updateElementFlags(element.id, visible: !element.visible),
+                              ),
                               tooltip: element.visible ? 'Hide' : 'Show',
                             ),
                             const Icon(Icons.drag_handle, color: Colors.white54, size: 16),

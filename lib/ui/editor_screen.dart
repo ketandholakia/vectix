@@ -16,6 +16,7 @@ import '../tools/star_tool.dart';
 import '../tools/freehand_tool.dart';
 import '../state/editor_notifier.dart';
 import '../state/history_manager.dart';
+import '../state/document_edit.dart';
 import '../state/editor_state.dart';
 import '../commands/delete_element_command.dart';
 import 'dart:io';
@@ -125,9 +126,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                                   ),
                                   ElevatedButton(
                                     onPressed: () {
-                                      notifier.renameActivePage(
-                                        controller.text,
-                                      );
+                                      ref.recordEdit('Rename artboard', () => notifier.renameActivePage(controller.text));
                                       Navigator.pop(context);
                                     },
                                     child: const Text('Save'),
@@ -137,15 +136,15 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                             },
                           );
                         } else if (value == 'duplicate') {
-                          notifier.duplicateActivePage();
+                          ref.recordEdit('Duplicate artboard', () => notifier.duplicateActivePage());
                         } else if (value == 'move_left') {
-                          notifier.moveActivePage(-1);
+                          ref.recordEdit('Move artboard left', () => notifier.moveActivePage(-1));
                         } else if (value == 'move_right') {
-                          notifier.moveActivePage(1);
+                          ref.recordEdit('Move artboard right', () => notifier.moveActivePage(1));
                         } else if (value == 'add') {
-                          notifier.addPage();
+                          ref.recordEdit('Add artboard', () => notifier.addPage());
                         } else if (value == 'remove') {
-                          notifier.removePage();
+                          ref.recordEdit('Remove artboard', () => notifier.removePage());
                         }
                       },
                       itemBuilder: (context) => const [
@@ -999,11 +998,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       ),
       onSelected: (value) {
         if (value == 'a4') {
-          ref.read(editorProvider.notifier).setDocumentSize(2100, 2970);
+          ref.recordEdit('Change artboard size', () => ref.read(editorProvider.notifier).setDocumentSize(2100, 2970));
         } else if (value == 'square') {
-          ref.read(editorProvider.notifier).setDocumentSize(1024, 1024);
+          ref.recordEdit('Change artboard size', () => ref.read(editorProvider.notifier).setDocumentSize(1024, 1024));
         } else if (value == 'wide') {
-          ref.read(editorProvider.notifier).setDocumentSize(1920, 1080);
+          ref.recordEdit('Change artboard size', () => ref.read(editorProvider.notifier).setDocumentSize(1920, 1080));
         }
       },
       itemBuilder: (context) => const [
@@ -1438,9 +1437,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     metadata[metadataKey] = working
                         .map((item) => _presetToJson(item))
                         .toList(growable: false);
-                    ref
-                        .read(editorProvider.notifier)
-                        .updateDocumentMetadata(metadata);
+                    ref.recordEdit('Save export presets', () => ref.read(editorProvider.notifier).updateDocumentMetadata(metadata));
                     _savePresetStore(metadata);
                   },
                   child: const Text('Save'),
