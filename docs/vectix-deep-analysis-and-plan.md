@@ -30,9 +30,12 @@
 | `67db295` | Repo published publicly, app-only history (workspace files rewritten out) | remote refs = `refs/heads/master` only; CI green ×2 |
 | _this batch_ | **P1-2 / P1-3 / P1-4** SVG defaults, presentation inheritance, colour grammar, rounded rects, stroke caps/joins/opacity/miter-limit, alpha-preserving export; painter now applies the text properties it was ignoring (**P1-5**, partial) | `test/svg_style_test.dart` (25 tests); `flutter test`: **47 passed** |
 | _this batch_ | **P0-5** gradient geometry: `gradientUnits` modelled, canvas and PDF both render the authored direction, SVG export writes the real units | `test/gradient_geometry_test.dart` (14 tests incl. pixel direction); `flutter test`: **61 passed** |
+| _this batch_ | **B6** fidelity corpus (27 SVG files, committed render hashes + a 100 % round-trip fidelity floor) — which immediately found and drove the fix for **P0-6** | corpus on first run: 4 files below floor → 27/27 at 100 % after the fix; `flutter test`: **64 passed** |
 
 Still open from Phase A: lint ratchet (A4).
-Still open from Phase B: B5 (artboard-aware SVG export), B6 (fidelity corpus — the highest-value remaining item, since every fidelity claim in this project has so far turned out to be optimistic).
+Still open from Phase B: B5 (artboard-aware SVG export).
+
+The corpus is now the safety net for every remaining fidelity claim. Its first run paid for itself within minutes: it found a bug that made every straight line disappear from exported SVG files, which four batches of review and testing had missed.
 
 **A new finding surfaced while fixing P0-4** — the mask renderer drew the mask geometry with `BlendMode.dstIn` and a white paint, i.e. *alpha* masking. The mask's colours were ignored, so a black shape inside a mask hid nothing even after the reference resolved. Real SVG `<mask>` is luminance-based. Fixed alongside the registry (`c7c46cd`); this is why the defect was invisible in code review and only appeared under pixel testing — reinforce B6 (corpus + render hashes) before trusting any other fidelity claim.
 
@@ -203,6 +206,21 @@ radial: (center, radius, stops) { paint.shader = RadialGradient(colors: ..., sto
 `start`, `end`, `center`, `radius` are **never used**. Default `LinearGradient` alignment is centre-left → centre-right, and default `RadialGradient` is centred — so every gradient in Vectix paints as a horizontal sweep (or centred blob) across the element's bounding box, regardless of the authored direction/position.
 
 The exporter, by contrast, writes the real geometry (`svg_exporter.dart._writeFillDef` → `x1,y1,x2,y2` with `gradientUnits="userSpaceOnUse"`). **The editor and the export disagree**, so a gradient authored in Vectix and exported looks different from what the user saw, and an imported gradient renders with the wrong direction. Fix: build the shader from `start`/`end` mapped into element-local space (`LinearGradient(begin: …, end: …)` from normalised coordinates, or a `ui.Gradient.linear(start, end, colors, stops)` in local space), and use `ui.Gradient.radial(center, radius, …)`.
+
+### P0-6 · The SVG exporter wrote straight lines as `<path>` elements with no `d` — they vanished on export  — **FIXED** in the B6 batch
+
+*Found by the new fidelity corpus on its first run, not by review.*
+
+`SvgExporter._writeElement` had a branch for two-point paths intended to emit a
+`<line>`, but the element name had been changed to `'path'` while the attributes
+were left as `x1/y1/x2/y2`. The result was `<path x1="5" y1="15" x2="95" y2="15"/>`
+— valid XML, **invalid SVG**, since a `<path>` without a `d` attribute renders
+nothing. Every straight line in every exported drawing was silently dropped, and
+the roadmap listed "Native SVG line import/export support" as done.
+
+Caught as a round-trip fidelity drop in four corpus files (`shapes_basic`,
+`stroke_features`, `style_attribute`, `clip_path_multi`); fixing the element name
+brought all four to exactly 100 %, which confirmed the single root cause.
 
 ---
 
